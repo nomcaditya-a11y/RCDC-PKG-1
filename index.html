@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise RCDC Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="logo-area">
+            <h1>RCDC Operations Dashboard <span>2025-26</span></h1>
+        </div>
+        <div id="connection-status" class="status-badge">🟡 Connecting to database...</div>
+    </header>
+
+    <main class="container">
+        <section class="global-filters box">
+            <div class="filter-grid">
+                <div class="input-group">
+                    <label>Region</label>
+                    <select id="filter-region"><option value="ALL">All Regions</option></select>
+                </div>
+                <div class="input-group">
+                    <label>Circle</label>
+                    <select id="filter-circle"><option value="ALL">All Circles</option></select>
+                </div>
+                <div class="input-group">
+                    <label>Division</label>
+                    <select id="filter-division"><option value="ALL">All Divisions</option></select>
+                </div>
+                <div class="input-group">
+                    <label>Zone / DC</label>
+                    <select id="filter-zone"><option value="ALL">All Zones</option></select>
+                </div>
+                <div class="input-group date-group">
+                    <label>Disc. Date Range</label>
+                    <div class="date-inputs">
+                        <input type="date" id="filter-start"> <span>to</span> <input type="date" id="filter-end">
+                    </div>
+                </div>
+                <div class="input-group btn-group">
+                    <button id="apply-filters" class="btn-primary">Apply Filters</button>
+                    <button id="reset-filters" class="btn-secondary">Reset</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="kpi-grid">
+            <div class="card kpi-card border-blue">
+                <p class="kpi-title">Total Disconnection</p>
+                <h3 id="kpi-total" class="kpi-value">0</h3>
+            </div>
+            <div class="card kpi-card border-green">
+                <p class="kpi-title">Reconnected</p>
+                <h3 id="kpi-reconnected" class="kpi-value text-green">0</h3>
+                <span id="kpi-reconnected-pct" class="kpi-pct">0%</span>
+            </div>
+            <div class="card kpi-card border-red">
+                <p class="kpi-title">Still Disconnected</p>
+                <h3 id="kpi-disconnected" class="kpi-value text-red">0</h3>
+                <span id="kpi-disconnected-pct" class="kpi-pct">0%</span>
+            </div>
+            <div class="card kpi-card border-yellow">
+                <p class="kpi-title">Pending</p>
+                <h3 id="kpi-pending" class="kpi-value text-yellow">0</h3>
+                <span id="kpi-pending-pct" class="kpi-pct">0%</span>
+            </div>
+            <div class="card kpi-card border-purple">
+                <p class="kpi-title">Cellular Meters</p>
+                <h3 id="kpi-cellular" class="kpi-value">0</h3>
+                <span id="kpi-cellular-pct" class="kpi-pct">0%</span>
+            </div>
+            <div class="card kpi-card border-orange">
+                <p class="kpi-title">RF Meters</p>
+                <h3 id="kpi-rf" class="kpi-value">0</h3>
+                <span id="kpi-rf-pct" class="kpi-pct">0%</span>
+            </div>
+        </section>
+
+        <section class="charts-grid">
+            <div class="box chart-box">
+                <h2 class="section-title">Still Disconnected by Comm Status</h2>
+                <div class="canvas-wrapper"><canvas id="commStatusChart"></canvas></div>
+            </div>
+            <div class="box chart-box">
+                <h2 class="section-title">Region Wise Disconnection</h2>
+                <div class="canvas-wrapper"><canvas id="regionChart"></canvas></div>
+            </div>
+            <div class="box chart-box full-width">
+                <h2 class="section-title">Total Disconnection and Reconnected Trends</h2>
+                <div class="canvas-wrapper"><canvas id="trendChart"></canvas></div>
+            </div>
+        </section>
+
+        <section class="tables-grid">
+            <div class="box table-box">
+                <h2 class="section-title">Still Disconnected Aging Summary</h2>
+                <div class="table-responsive">
+                    <table id="aging-table" class="data-table">
+                        <thead></thead><tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="box table-box">
+                <h2 class="section-title">DCRC Progress by Region and Circle</h2>
+                <div class="table-responsive">
+                    <table id="progress-table" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Region/Circle</th>
+                                <th>Reconnected</th>
+                                <th>Still Disconnected</th>
+                                <th>Pending</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="map-section">
+            <div class="box map-box full-width">
+                <h2 class="section-title">Disconnected Meter Locations</h2>
+                
+                <div class="map-controls">
+                    <div class="map-filter">
+                        <label>Map Zone:</label>
+                        <select id="map-zone-filter"><option value="ALL">All Zones</option></select>
+                    </div>
+                    <div class="map-filter">
+                        <label>Map Aging:</label>
+                        <select id="map-aging-filter">
+                            <option value="ALL">All Aging Buckets</option>
+                            <option value="Above 3 Months">Above 3 Months</option>
+                            <option value="Above 2 Months">Above 2 Months</option>
+                            <option value="Above 1 Month">Above 1 Month</option>
+                            <option value="Above 15 Days">Above 15 Days</option>
+                            <option value="Below 15 Days">Below 15 Days</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="map" class="modern-map"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
