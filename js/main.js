@@ -11,7 +11,7 @@ let mapInstance = null;
 let markerGroup = null;
 
 let currentMapZone = "ALL";
-let currentMapAging = "ALL";
+let currentMapAging = "Above 3 Months";
 
 document.addEventListener('DOMContentLoaded', async () => {
     const statusEl = document.getElementById('connection-status');
@@ -553,3 +553,4 @@ function updateMapMarkers() {
         mapInstance.setView([21.25, 81.62], 6);
     }
 }
+
