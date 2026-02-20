@@ -554,3 +554,65 @@ function updateMapMarkers() {
     }
 }
 
+// --- EXPORT KPI DATA TO CSV ---
+function downloadKPIData(kpiType) {
+    if (!filteredData || filteredData.length === 0) {
+        alert("No data available to download.");
+        return;
+    }
+
+    let exportData = [];
+    let fileName = "";
+
+    // Filter the data based on which card was clicked
+    switch(kpiType) {
+        case 'total':
+            exportData = filteredData;
+            fileName = "Total_Disconnections.csv";
+            break;
+        case 'reconnected':
+            exportData = filteredData.filter(r => safeGet(r, 'Status') && safeGet(r, 'Status').toLowerCase().includes('reconnected'));
+            fileName = "Reconnected_Meters.csv";
+            break;
+        case 'disconnected':
+            exportData = filteredData.filter(r => safeGet(r, 'Status') && safeGet(r, 'Status').toLowerCase().includes('disconnected'));
+            fileName = "Still_Disconnected_Meters.csv";
+            break;
+        case 'pending':
+            exportData = filteredData.filter(r => safeGet(r, 'Status') && safeGet(r, 'Status').toLowerCase().includes('pending'));
+            fileName = "Pending_Meters.csv";
+            break;
+        case 'cellular':
+            exportData = filteredData.filter(r => safeGet(r, 'Comm Medium') && safeGet(r, 'Comm Medium').toLowerCase().includes('cellular'));
+            fileName = "Cellular_Meters.csv";
+            break;
+        case 'rf':
+            exportData = filteredData.filter(r => safeGet(r, 'Comm Medium') && safeGet(r, 'Comm Medium').toLowerCase().includes('rf'));
+            fileName = "RF_Meters.csv";
+            break;
+    }
+
+    if (exportData.length === 0) {
+        alert(`No records found for ${kpiType} in the current filter.`);
+        return;
+    }
+
+    // Convert the array of objects back into CSV text using PapaParse
+    const csvContent = Papa.unparse(exportData);
+    
+    // Create a Blob containing the CSV data
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create a hidden link, click it to trigger download, and remove it
+    const link = document.createElement("a");
+    const dateStr = new Date().toISOString().slice(0,10); // Format: YYYY-MM-DD
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `RCDC_${dateStr}_${fileName}`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
