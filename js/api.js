@@ -22,4 +22,5 @@ async function fetchMeterData() {
         console.error("Error fetching data:", error);
         return null;
     }
+
 }
