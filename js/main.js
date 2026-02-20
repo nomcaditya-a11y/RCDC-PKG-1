@@ -228,8 +228,9 @@ function updateKPIs(data) {
 
 function drawRegionChart(data) {
     destroyChart('regionChart');
-    const disconnectedData = data.filter(r => safeGet(r, 'Status') && safeGet(r, 'Status').toLowerCase().includes('disconnected'));
-    const regionCounts = disconnectedData.reduce((acc, row) => {
+    
+    // CHANGE: Removed the .filter() so it counts ALL records (Total Disconnections)
+    const regionCounts = data.reduce((acc, row) => {
         const region = safeGet(row, 'Region Name') || 'Unknown';
         acc[region] = (acc[region] || 0) + 1;
         return acc;
@@ -243,10 +244,24 @@ function drawRegionChart(data) {
             datasets: [{
                 data: Object.values(regionCounts),
                 backgroundColor: ['#0284c7', '#f59e0b', '#16a34a', '#dc2626', '#8b5cf6'],
-                borderWidth: 0, hoverOffset: 4
+                borderWidth: 0, 
+                hoverOffset: 4
             }]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' }, datalabels: percentFormatter } }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { 
+                legend: { position: 'right' }, 
+                datalabels: percentFormatter,
+                // Optional: Add a title inside the chart options to clarify it is Total
+                title: {
+                    display: true,
+                    text: 'Total Disconnections by Region',
+                    color: '#475569'
+                }
+            } 
+        }
     });
 }
 
@@ -553,7 +568,6 @@ function updateMapMarkers() {
         mapInstance.setView([21.25, 81.62], 6);
     }
 }
-
 // --- EXPORT KPI DATA TO CSV ---
 function downloadKPIData(kpiType) {
     if (!filteredData || filteredData.length === 0) {
@@ -615,4 +629,79 @@ function downloadKPIData(kpiType) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+}
+
+// js/main.js
+
+async function switchPackage(pkgType) {
+    // 1. UI Feedback: Update active button
+    document.querySelectorAll('.pkg-btn').forEach(btn => btn.classList.remove('active'));
+    if(pkgType === 'pkg1') document.getElementById('btn-pkg1').classList.add('active');
+    if(pkgType === 'pkg3') document.getElementById('btn-pkg3').classList.add('active');
+
+    // 2. Show Loading State
+    const statusEl = document.getElementById('connection-status');
+    statusEl.innerHTML = "🟡 Loading " + pkgType.toUpperCase() + "...";
+
+    // 3. Fetch New Data
+    const newData = await fetchMeterData(pkgType);
+
+    if (newData && newData.length > 0) {
+        rawData = newData;
+        filteredData = [...rawData];
+        
+        statusEl.innerHTML = `🟢 ${pkgType.toUpperCase()} Live: ${rawData.length} records`;
+        
+        // 4. Refresh everything with new data
+        populateGlobalFiltersInitial();
+        renderDashboard();
+    } else {
+        statusEl.innerHTML = `🔴 Error loading ${pkgType.toUpperCase()}`;
+    }
+}
+
+// js/main.js
+
+// Function to start the background auto-reload
+function startAutoReload(minutes = 5) {
+    console.log(`Auto-reload scheduled every ${minutes} minutes.`);
+    
+    setInterval(async () => {
+        // 1. Identify which package is currently active
+        const activePkg = document.getElementById('btn-pkg3').classList.contains('active') ? 'pkg3' : 'pkg1';
+        
+        // 2. Silently update the status badge to show it's checking
+        const statusEl = document.getElementById('connection-status');
+        const originalStatus = statusEl.innerHTML;
+        statusEl.innerHTML = `🔄 Syncing...`;
+
+        // 3. Fetch fresh data using the Cache Buster we set up in api.js
+        const newData = await fetchMeterData(activePkg);
+
+        if (newData && newData.length > 0) {
+            // 4. Update global variables
+            rawData = newData;
+            
+            // Re-apply existing filters so the user doesn't lose their current view
+            applyGlobalFilters(); 
+            
+            statusEl.innerHTML = `🟢 Live Sync: ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+            console.log("Background data sync complete.");
+        } else {
+            statusEl.innerHTML = originalStatus; // Revert if fetch fails
+        }
+    }, minutes * 60 * 1000); 
+}
+
+// 5. Initialize the reload when the page first loads
+// Add this inside your document.addEventListener('DOMContentLoaded', ...) block
+startAutoReload(5);
+
+async function refreshData() {
+    // Get the current active package (detect which button has the 'active' class)
+    const activePkg = document.getElementById('btn-pkg3').classList.contains('active') ? 'pkg3' : 'pkg1';
+    
+    // Call your switch function to reload everything
+    await switchPackage(activePkg);
+    console.log("Data manually refreshed!");
 }
