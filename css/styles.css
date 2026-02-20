@@ -110,7 +110,91 @@ body { background-color: var(--bg-color); color: var(--text-main); line-height: 
     opacity: 0.6;
     transition: opacity 0.2s ease;
 }
+/* Styling for the Package Switcher */
+.logo-area {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
 
+.pkg-switcher {
+    display: flex;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.pkg-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.pkg-btn.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+/* css/styles.css */
+
+.logo-area {
+    display: flex;
+    align-items: center; /* Vertically centers logo, text, and buttons */
+    gap: 15px;           /* Space between each element */
+}
+
+.dashboard-logo {
+    height: 40px;        /* Matches the height of the text/buttons */
+    width: auto;
+    object-fit: contain;
+}
+
+.logo-area h1 {
+    font-size: 1.25rem;
+    margin: 0;
+    white-space: nowrap; /* Prevents title from breaking into two lines */
+}
+
+/* Make sure the switcher stays compact in the line */
+.pkg-switcher {
+    display: flex;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px;
+    border-radius: 6px;
+    margin-left: 10px;
+}
+
+.pkg-btn {
+    padding: 4px 12px;
+    font-size: 0.8rem;
+}
+
+/* Adjust the badge on the far right */
+.status-badge {
+    margin-left: auto; /* Pushes the status badge to the extreme right */
+}
+
+/* Responsive fix for small screens */
+@media (max-width: 900px) {
+    .logo-area {
+        flex-wrap: wrap; /* Allows wrapping on small tablets */
+        gap: 10px;
+    }
+    .status-badge {
+        display: none; /* Hide status badge on very small screens to save space */
+    }
+}
+.pkg-btn:hover:not(.active) {
+    color: white;
+    background: rgba(255, 255, 255, 0.05);
+}
 .kpi-card:hover .kpi-download-hint {
     opacity: 1; /* Highlights the download text when hovered */
     color: var(--primary);
@@ -183,4 +267,3 @@ body { background-color: var(--bg-color); color: var(--text-main); line-height: 
     
     .map-controls { flex-direction: column; align-items: stretch; }
 }
-
