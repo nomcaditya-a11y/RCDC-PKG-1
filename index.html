@@ -3,18 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Genus PKG-1 RCDC Dashboard</title>
+    <title>Enterprise RCDC Dashboard</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <header class="top-nav">
-        <div class="logo-area">
-            <h1>RCDC Operations Dashboard <span>2025-26</span></h1>
+    
+   <header class="top-nav">
+    <div class="logo-area">
+        <img src="js/logo.webp" alt="Logo" class="dashboard-logo">
+        
+        <h1>RCDC Dashboard <span>2025-26</span></h1>
+        
+        <div class="pkg-switcher">
+            <button id="btn-pkg1" class="pkg-btn active" onclick="switchPackage('pkg1')">PKG-1</button>
+            <button id="btn-pkg3" class="pkg-btn" onclick="switchPackage('pkg3')">PKG-3</button>
         </div>
-        <div id="connection-status" class="status-badge">🟡 Connecting to database...</div>
-    </header>
+        
+        <button onclick="refreshData()" class="btn-secondary" style="margin-left: 10px; padding: 4px 8px;">🔄</button>
+    </div>
+    
+    <div id="connection-status" class="status-badge">🟡 Connecting...</div>
+</header>
 
     <main class="container">
         <section class="global-filters box">
@@ -48,7 +59,7 @@
             </div>
         </section>
 
-        <section class="kpi-grid">
+       <section class="kpi-grid">
             <div class="card kpi-card border-blue" onclick="downloadKPIData('total')" title="Click to download CSV">
                 <p class="kpi-title">Total Disconnection</p>
                 <h3 id="kpi-total" class="kpi-value">0</h3>
@@ -163,6 +174,4 @@
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
 </body>
-
 </html>
-
