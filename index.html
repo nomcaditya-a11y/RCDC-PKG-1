@@ -49,34 +49,40 @@
         </section>
 
         <section class="kpi-grid">
-            <div class="card kpi-card border-blue">
+            <div class="card kpi-card border-blue" onclick="downloadKPIData('total')" title="Click to download CSV">
                 <p class="kpi-title">Total Disconnection</p>
                 <h3 id="kpi-total" class="kpi-value">0</h3>
+                <div class="kpi-download-hint">⬇️ Click to Download</div>
             </div>
-            <div class="card kpi-card border-green">
+            <div class="card kpi-card border-green" onclick="downloadKPIData('reconnected')" title="Click to download CSV">
                 <p class="kpi-title">Reconnected</p>
                 <h3 id="kpi-reconnected" class="kpi-value text-green">0</h3>
                 <span id="kpi-reconnected-pct" class="kpi-pct">0%</span>
+                <div class="kpi-download-hint">⬇️ Click to Download</div>
             </div>
-            <div class="card kpi-card border-red">
+            <div class="card kpi-card border-red" onclick="downloadKPIData('disconnected')" title="Click to download CSV">
                 <p class="kpi-title">Still Disconnected</p>
                 <h3 id="kpi-disconnected" class="kpi-value text-red">0</h3>
                 <span id="kpi-disconnected-pct" class="kpi-pct">0%</span>
+                <div class="kpi-download-hint">⬇️ Click to Download</div>
             </div>
-            <div class="card kpi-card border-yellow">
+            <div class="card kpi-card border-yellow" onclick="downloadKPIData('pending')" title="Click to download CSV">
                 <p class="kpi-title">Pending</p>
                 <h3 id="kpi-pending" class="kpi-value text-yellow">0</h3>
                 <span id="kpi-pending-pct" class="kpi-pct">0%</span>
+                <div class="kpi-download-hint">⬇️ Click to Download</div>
             </div>
-            <div class="card kpi-card border-purple">
+            <div class="card kpi-card border-purple" onclick="downloadKPIData('cellular')" title="Click to download CSV">
                 <p class="kpi-title">Cellular Meters</p>
                 <h3 id="kpi-cellular" class="kpi-value">0</h3>
                 <span id="kpi-cellular-pct" class="kpi-pct">0%</span>
+                <div class="kpi-download-hint">⬇️ Click to Download</div>
             </div>
-            <div class="card kpi-card border-orange">
+            <div class="card kpi-card border-orange" onclick="downloadKPIData('rf')" title="Click to download CSV">
                 <p class="kpi-title">RF Meters</p>
                 <h3 id="kpi-rf" class="kpi-value">0</h3>
                 <span id="kpi-rf-pct" class="kpi-pct">0%</span>
+                <div class="kpi-download-hint">⬇️ Click to Download</div>
             </div>
         </section>
 
@@ -159,3 +165,4 @@
 </body>
 
 </html>
+
