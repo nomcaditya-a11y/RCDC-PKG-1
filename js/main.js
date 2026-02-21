@@ -227,23 +227,35 @@ function updateKPIs(data) {
 }
 
 function drawRegionChart(data) {
+
+    
     destroyChart('regionChart');
     
-    // CHANGE: Removed the .filter() so it counts ALL records (Total Disconnections)
-    const regionCounts = data.reduce((acc, row) => {
-        const region = safeGet(row, 'Region Name') || 'Unknown';
-        acc[region] = (acc[region] || 0) + 1;
+    
+    // 1. Get the dynamic column based on current filters
+    const groupByCol = getGroupingColumn();
+    let displayTitle = groupByCol.replace(' Name', '').replace('/DC', ''); // Cleans up title
+
+    if(document.getElementById('dynamic-chart-title')) {
+        document.getElementById('dynamic-chart-title').innerText = `${displayTitle} Wise Disconnection`;
+    }
+    
+    // 2. Group the total data by the dynamic column
+    const dynamicCounts = data.reduce((acc, row) => {
+        const key = safeGet(row, groupByCol) || 'Unknown';
+        acc[key] = (acc[key] || 0) + 1;
         return acc;
     }, {});
+    
 
     const ctx = document.getElementById('regionChart').getContext('2d');
     chartInstances['regionChart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: Object.keys(regionCounts),
+            labels: Object.keys(dynamicCounts),
             datasets: [{
-                data: Object.values(regionCounts),
-                backgroundColor: ['#0284c7', '#f59e0b', '#16a34a', '#dc2626', '#8b5cf6'],
+                data: Object.values(dynamicCounts),
+                backgroundColor: ['#0284c7', '#f59e0b', '#16a34a', '#dc2626', '#8b5cf6', '#34d399', '#f97316', '#1e40af'],
                 borderWidth: 0, 
                 hoverOffset: 4
             }]
@@ -254,17 +266,16 @@ function drawRegionChart(data) {
             plugins: { 
                 legend: { position: 'right' }, 
                 datalabels: percentFormatter,
-                // Optional: Add a title inside the chart options to clarify it is Total
                 title: {
                     display: true,
-                    text: 'Total Disconnections by Region',
-                    color: '#475569'
+                    text: `Total Disconnections by ${displayTitle}`, // Dynamic Title
+                    color: '#475569',
+                    font: { size: 14 }
                 }
             } 
         }
     });
 }
-
 function drawCommStatusChart(data) {
     destroyChart('commStatusChart');
     const disconnectedData = data.filter(r => safeGet(r, 'Status') && safeGet(r, 'Status').toLowerCase().includes('disconnected'));
@@ -323,13 +334,19 @@ function drawTrendChart(data) {
 
 // --- TABLES ---
 function buildProgressTable(data) {
+    // 1. Get dynamic grouping column
+    const groupByCol = getGroupingColumn();
+    let displayHeader = groupByCol.replace(' Name', '').replace('/DC', '');
+    
+    if(document.getElementById('dynamic-progress-title')) {
+        document.getElementById('dynamic-progress-title').innerText = `DCRC Progress by ${displayHeader}`;
+    }
     const tableData = {};
     let grandReconnected = 0, grandDisconnected = 0, grandPending = 0, grandTotal = 0;
 
+    // 2. Group data dynamically
     data.forEach(row => {
-        const region = safeGet(row, 'Region Name') || 'Unknown';
-        const circle = safeGet(row, 'Circle Name') || 'Unknown';
-        const key = `${region} - ${circle}`;
+        const key = safeGet(row, groupByCol) || 'Unknown';
 
         if (!tableData[key]) tableData[key] = { reconnected: 0, disconnected: 0, pending: 0, total: 0 };
 
@@ -342,6 +359,19 @@ function buildProgressTable(data) {
         else if (status.includes('pending')) { tableData[key].pending++; grandPending++; }
     });
 
+    // 3. Dynamically update the Table Header
+    const thead = document.querySelector('#progress-table thead');
+    if (thead) {
+        thead.innerHTML = `<tr>
+            <th>${displayHeader}</th>
+            <th>Reconnected</th>
+            <th>Disconnected</th>
+            <th>Pending</th>
+            <th>Total</th>
+        </tr>`;
+    }
+
+    // 4. Build Table Body
     const tbody = document.querySelector('#progress-table tbody');
     tbody.innerHTML = ''; 
     for (const [name, stats] of Object.entries(tableData)) {
@@ -384,41 +414,61 @@ function getAgingBucket(dateObj) {
     return "Below 15 Days"; 
 }
 
+// --- DYNAMIC AGING TABLE ---
 function buildAgingTable(data) {
+    // 1. Get dynamic grouping column
+    const groupByCol = getGroupingColumn();
+    
+    // --- NEW: Update the HTML title dynamically ---
+    let displayHeader = groupByCol.replace(' Name', '').replace('/DC', '');
+    const titleEl = document.getElementById('dynamic-aging-title');
+    if (titleEl) {
+        titleEl.innerText = `Aging by ${displayHeader}`;
+    }
+    // ----------------------------------------------
+    
+    // 2. Only look at disconnected meters for Aging
     const disconnectedMeters = data.filter(row => safeGet(row, 'Status') && safeGet(row, 'Status').toLowerCase().includes('disconnected'));
-    const regions = [...new Set(disconnectedMeters.map(r => safeGet(r, 'Region Name')).filter(Boolean))].sort();
+    
+    // 3. Find unique columns based on the current drill-down depth
+    const dynamicCols = [...new Set(disconnectedMeters.map(r => safeGet(r, groupByCol)).filter(Boolean))].sort();
     const buckets = ["Above 3 Months", "Above 2 Months", "Above 1 Month", "Above 15 Days", "Below 15 Days"];
 
     const agingData = {};
-    buckets.forEach(b => { agingData[b] = { Total: 0 }; regions.forEach(r => agingData[b][r] = 0); });
+    buckets.forEach(b => { agingData[b] = { Total: 0 }; dynamicCols.forEach(c => agingData[b][c] = 0); });
 
     disconnectedMeters.forEach(row => {
         const bucket = getAgingBucket(parseDateString(safeGet(row, 'disc. date')));
-        const region = safeGet(row, 'Region Name');
-        if (agingData[bucket] && region && agingData[bucket][region] !== undefined) {
-            agingData[bucket][region]++;
+        const key = safeGet(row, groupByCol);
+        if (agingData[bucket] && key && agingData[bucket][key] !== undefined) {
+            agingData[bucket][key]++;
             agingData[bucket].Total++;
         }
     });
 
+    // 4. Update the Table Headers Dynamically
     const thead = document.querySelector('#aging-table thead');
-    thead.innerHTML = `<tr><th>Aging Bucket</th>${regions.map(r => `<th>${r}</th>`).join('')}<th>Total</th></tr>`;
+    thead.innerHTML = `<tr><th>Aging Bucket</th>${dynamicCols.map(c => `<th>${c}</th>`).join('')}<th>Total</th></tr>`;
 
+    // 5. Update the Table Body
     const tbody = document.querySelector('#aging-table tbody');
     tbody.innerHTML = ''; 
     const grandTotals = { Total: 0 };
-    regions.forEach(r => grandTotals[r] = 0);
+    dynamicCols.forEach(c => grandTotals[c] = 0);
 
     buckets.forEach(bucket => {
         let rowHtml = `<td>${bucket}</td>`;
-        regions.forEach(r => { rowHtml += `<td>${agingData[bucket][r]}</td>`; grandTotals[r] += agingData[bucket][r]; });
+        dynamicCols.forEach(c => { 
+            rowHtml += `<td>${agingData[bucket][c]}</td>`; 
+            grandTotals[c] += agingData[bucket][c]; 
+        });
         rowHtml += `<td><strong>${agingData[bucket].Total}</strong></td>`;
         grandTotals.Total += agingData[bucket].Total;
         tbody.innerHTML += `<tr>${rowHtml}</tr>`;
     });
 
     let totalHtml = `<td><strong>Grand Total</strong></td>`;
-    regions.forEach(r => totalHtml += `<td><strong>${grandTotals[r]}</strong></td>`);
+    dynamicCols.forEach(c => totalHtml += `<td><strong>${grandTotals[c]}</strong></td>`);
     totalHtml += `<td><strong>${grandTotals.Total}</strong></td>`;
     tbody.innerHTML += `<tr>${totalHtml}</tr>`;
 }
@@ -705,3 +755,19 @@ async function refreshData() {
     await switchPackage(activePkg);
     console.log("Data manually refreshed!");
 }
+
+// --- DYNAMIC HIERARCHY LOGIC ---
+// Determines what level of data to show based on the current filters
+function getGroupingColumn() {
+    const region = document.getElementById('filter-region').value;
+    const circle = document.getElementById('filter-circle').value;
+    const division = document.getElementById('filter-division').value;
+    const zone = document.getElementById('filter-zone').value;
+
+    if (zone !== "ALL") return 'Zone/DC Name';       // If Zone selected, show that Zone
+    if (division !== "ALL") return 'Zone/DC Name';   // If Division selected, show its Zones
+    if (circle !== "ALL") return 'Division Name';    // If Circle selected, show its Divisions
+    if (region !== "ALL") return 'Circle Name';      // If Region selected, show its Circles
+    return 'Region Name';                            // Default: Show Regions
+}
+
