@@ -12,7 +12,7 @@ let markerGroup = null;
 let neighborGroup = null;
 
 let currentMapZone = "ALL";
-let currentMapAging = "Above 3 Months";
+let currentMapAging = "Above 3 Months"; // FIX: Default is now Above 3 Months
 let currentMapComm = "NonComm"; 
 
 // --- INITIALIZATION ---
@@ -32,7 +32,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         populateGlobalFiltersInitial();
         
-        // FIX: Must call applyGlobalFilters on load so the Date Flags are generated!
         applyGlobalFilters(); 
 
         document.getElementById('filter-region').addEventListener('change', syncDependentFilters);
@@ -82,7 +81,6 @@ function getChildColumn(parentCol) {
     return null; 
 }
 
-// FIX: New bulletproof accordion logic with sleek SVG icons
 window.toggleParentRow = function(rowElement, childClassName) {
     const children = document.querySelectorAll('.' + childClassName);
     const iconElement = rowElement.querySelector('.toggle-icon');
@@ -96,11 +94,9 @@ window.toggleParentRow = function(rowElement, childClassName) {
     
     if (iconElement) {
         if (isCurrentlyHidden) {
-            // Down Arrow (Open)
             iconElement.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`;
             iconElement.style.color = '#0284c7';
         } else {
-            // Right Arrow (Closed)
             iconElement.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
             iconElement.style.color = '';
         }
@@ -169,7 +165,6 @@ function applyGlobalFilters() {
         if (division !== "ALL" && safeGet(row, 'Division Name') !== division) return false;
         if (zone !== "ALL" && safeGet(row, 'Zone/DC Name') !== zone) return false;
 
-        // Date Logic Flags
         const dDate = parseDateString(safeGet(row, 'disc. date'));
         const rDate = parseDateString(safeGet(row, 'reconnection date'));
         
@@ -184,7 +179,9 @@ function applyGlobalFilters() {
         return true;
     });
 
-    currentMapZone = "ALL"; currentMapAging = "Above 3 Months"; currentMapComm = "NonComm"; 
+    currentMapZone = "ALL"; 
+    currentMapAging = "Above 3 Months"; // FIX: Default filter maintained
+    currentMapComm = "NonComm"; 
     renderDashboard();
 }
 
@@ -391,7 +388,6 @@ function buildProgressTable(data) {
         rowIndex++;
         const hasChildren = childCol && Object.keys(v.children).length > 0;
         
-        // Clean SVG Right Arrow
         const rightArrow = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
         
         const expandIcon = hasChildren 
@@ -464,7 +460,7 @@ function buildAgingTable(data) {
     tbody.innerHTML += `<tr style="background: rgba(0,0,0,0.05);">${totalHtml}</tr>`;
 }
 
-// --- MAP & NEIGHBORS ---
+// --- MAP & NEIGHBORS (WITH JITTER FOR OVERLAPPING PINS) ---
 function updateMapFilters() {
     const mapData = filteredData.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
     
@@ -472,7 +468,7 @@ function updateMapFilters() {
     if (currentMapComm === "NonComm") cData = cData.filter(r => (safeGet(r, 'Comm Status')||"").toLowerCase().includes('non'));
     else if (currentMapComm === "Comm") cData = cData.filter(r => !(safeGet(r, 'Comm Status')||"").toLowerCase().includes('non'));
 
-    let zData = currentMapAging !== "Above 3 Months" ? cData.filter(r => getAgingBucket(parseDateString(safeGet(r, 'disc. date'))) === currentMapAging) : cData;
+    let zData = currentMapAging !== "ALL" ? cData.filter(r => getAgingBucket(parseDateString(safeGet(r, 'disc. date'))) === currentMapAging) : cData;
     let aData = currentMapZone !== "ALL" ? cData.filter(r => safeGet(r, 'Zone/DC Name') === currentMapZone) : cData;
     
     repopulateDropdown('map-zone-filter', zData, 'Zone/DC Name', currentMapZone);
@@ -530,7 +526,7 @@ function updateMapMarkers() {
         else if (currentMapComm === "Comm" && !commStat.includes('non')) commMatch = true;
 
         if ((currentMapZone === "ALL" || safeGet(row, 'Zone/DC Name') === currentMapZone) && 
-            (currentMapAging === "Above 3 Months" || bucket === currentMapAging) && commMatch) {
+            (currentMapAging === "ALL" || bucket === currentMapAging) && commMatch) {
             
             const lat = parseFloat(safeGet(row, 'Latitute')), lng = parseFloat(safeGet(row, 'Longitude'));
             if (!isNaN(lat)) {
@@ -542,20 +538,28 @@ function updateMapMarkers() {
                     
                     rawData.forEach(nRow => {
                         if (nRow === row) return; 
-                        const nLat = parseFloat(safeGet(nRow, 'Latitute')); 
-                        const nLng = parseFloat(safeGet(nRow, 'Longitude'));
+                        let nLat = parseFloat(safeGet(nRow, 'Latitute')); 
+                        let nLng = parseFloat(safeGet(nRow, 'Longitude'));
                         if (isNaN(nLat)) return;
                         
                         const dist = getDistance(lat, lng, nLat, nLng);
-                        if (dist <= 100) { 
+                        if (dist <= 200) { 
                             const stat = (safeGet(nRow, 'Status')||"").toLowerCase();
                             const comm = (safeGet(nRow, 'Comm Status')||"").toLowerCase();
                             
-                            if (stat.includes('recon') || !comm.includes('non')) {
-                                const isRecon = stat.includes('recon');
+                            const isRecon = stat.includes('recon');
+                            const isComm = !comm.includes('non') && comm.trim() !== "";
+                            
+                            if (isRecon || isComm) {
+                                // FIX: Jitter for exactly identical coordinates so pins don't overlap completely
+                                if (Math.abs(nLat - lat) < 0.00001 && Math.abs(nLng - lng) < 0.00001) {
+                                    nLat += (Math.random() - 0.5) * 0.0002;
+                                    nLng += (Math.random() - 0.5) * 0.0002;
+                                }
+
                                 neighbors.push({ id: safeGet(nRow, 'meter_id'), dist: Math.round(dist), stat: isRecon ? 'Reconnected' : 'Communicating' });
                                 
-                                const nMarker = L.marker([nLat, nLng], { icon: isRecon ? bluePin : greenPin })
+                                const nMarker = L.marker([nLat, nLng], { icon: isRecon ? bluePin : greenPin, zIndexOffset: 1000 })
                                     .bindPopup(`<b style="font-size:11px; color:#333;">Neighbor Meter: ${safeGet(nRow, 'meter_id')}</b><br><span style="font-size:10px; color:${isRecon ? '#0284c7' : '#16a34a'};">${isRecon ? 'Reconnected' : 'Communicating'}</span>`);
                                 neighborGroup.addLayer(nMarker);
                             }
@@ -563,7 +567,7 @@ function updateMapMarkers() {
                     });
 
                     let nList = neighbors.map(n => `<div class="neighbor-item">Meter: ${n.id} | <span class="${n.stat==='Reconnected'?'n-recon':'n-comm'}">${n.stat}</span> | ${n.dist}m away</div>`).join('');
-                    if(neighbors.length === 0) nList = "<div style='font-size:10px; color:#888;'>No active neighbors within 100m.</div>";
+                    if(neighbors.length === 0) nList = "<div style='font-size:10px; color:#888;'>No active neighbors within 200m.</div>";
 
                     marker.bindPopup(`
                         <div style="font-family:Inter; min-width: 200px;">
@@ -669,4 +673,3 @@ function toggleTheme() {
         if(themeBtn) themeBtn.innerText = '☀️'; 
     }
 }
-
