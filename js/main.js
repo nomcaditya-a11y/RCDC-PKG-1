@@ -5,6 +5,7 @@ Chart.register(ChartDataLabels);
 
 // --- GLOBAL STATE ---
 let rawData = [];
+let todayExportData = { disc: [], req: [], recon: [] };
 let filteredData = [];
 let chartInstances = {}; 
 let mapInstance = null;
@@ -260,9 +261,10 @@ function getMediumCounts(data) {
 // --- KPIs WITH RF/CELL FOR ALL ---
 // --- HYBRID KPIs ---
 // --- HYBRID KPIs ---
+// --- HYBRID KPIs WITH TODAY'S ACTIVITY LOGIC ---
 function updateKPIs(data) {
     let totalDisc = [], recon = [], disc = [], pend = [];
-    let todayDisc = [], todayRecon = []; 
+    let todayDisc = [], todayRecon = [], todayReq = []; // Added todayReq
 
     const startVal = document.getElementById('filter-start').value;
     const endVal = document.getElementById('filter-end').value;
@@ -275,7 +277,6 @@ function updateKPIs(data) {
         let status = originalStatus;
         
         const dDate = parseDateString(safeGet(r, 'disc. date'));
-        // FIX: Look for BOTH spellings
         const rDate = parseDateString(safeGet(r, 'Reconnection date') || safeGet(r, 'Reconnecion date'));
         const rTime = rDate ? rDate.getTime() : null;
 
@@ -284,8 +285,8 @@ function updateKPIs(data) {
             status = 'disconnected'; 
         }
 
+        // Standard KPI Logic
         if (r._isDValid) { totalDisc.push(r); }
-        
         if (r._isRValid && originalStatus.includes('reconnected')) { recon.push(r); }
 
         if (r._isBacklog) {
@@ -293,11 +294,21 @@ function updateKPIs(data) {
             else if (status.includes('pending')) pend.push(r);
         }
 
-        if(isToday(dDate)) todayDisc.push(r);
-        if(isToday(rDate) && originalStatus.includes('reconnected')) todayRecon.push(r);
+        // --- NEW TODAY LOGIC ---
+        if(isToday(dDate)) {
+            todayDisc.push(r);
+        }
+        
+        if(isToday(rDate)) {
+            todayReq.push(r); // Counts all requests for today, regardless of status
+            
+            if (originalStatus.includes('reconnected')) {
+                todayRecon.push(r); // Counts ONLY actually reconnected meters
+            }
+        }
     });
 
-    // Update DOM
+    // --- UPDATE DOM FOR TOP KPIs ---
     document.getElementById('kpi-total').innerText = totalDisc.length;
     let tM = getMediumCounts(totalDisc);
     if(document.getElementById('sub-total')) document.getElementById('sub-total').innerHTML = `Cell: ${tM.cell} | RF: ${tM.rf}`;
@@ -314,13 +325,29 @@ function updateKPIs(data) {
     let pM = getMediumCounts(pend);
     if(document.getElementById('sub-pend')) document.getElementById('sub-pend').innerHTML = `Cell: ${pM.cell} | RF: ${pM.rf}`;
 
-    document.getElementById('kpi-today-disc').innerText = todayDisc.length;
-    let tdM = getMediumCounts(todayDisc);
-    if(document.getElementById('sub-today-disc')) document.getElementById('sub-today-disc').innerHTML = `Cell: ${tdM.cell} | RF: ${tdM.rf}`;
+    // --- UPDATE DOM FOR NEW "TODAY" CARD ---
+    if(document.getElementById('kpi-today-disc')) {
+        document.getElementById('kpi-today-disc').innerText = todayDisc.length;
+        let tdM = getMediumCounts(todayDisc);
+        if(document.getElementById('sub-today-disc')) document.getElementById('sub-today-disc').innerHTML = `Cell: ${tdM.cell} | RF: ${tdM.rf}`;
+    }
 
-    document.getElementById('kpi-today-recon').innerText = todayRecon.length;
-    let trM = getMediumCounts(todayRecon);
-    if(document.getElementById('sub-today-recon')) document.getElementById('sub-today-recon').innerHTML = `Cell: ${trM.cell} | RF: ${trM.rf}`;
+    if(document.getElementById('kpi-today-req')) {
+        document.getElementById('kpi-today-req').innerText = todayReq.length;
+        let tReqM = getMediumCounts(todayReq);
+        if(document.getElementById('sub-today-req')) document.getElementById('sub-today-req').innerHTML = `Cell: ${tReqM.cell} | RF: ${tReqM.rf}`;
+    }
+
+    if(document.getElementById('kpi-today-recon')) {
+        document.getElementById('kpi-today-recon').innerText = todayRecon.length;
+        let trM = getMediumCounts(todayRecon);
+        if(document.getElementById('sub-today-recon')) document.getElementById('sub-today-recon').innerHTML = `Cell: ${trM.cell} | RF: ${trM.rf}`;
+    }
+
+    // --- SAVE TO GLOBAL MEMORY FOR EXCEL DOWNLOADS ---
+    todayExportData.disc = todayDisc;
+    todayExportData.req = todayReq;
+    todayExportData.recon = todayRecon;
 }
 
 // --- CHARTS ---
@@ -921,4 +948,20 @@ function isToday(someDate) {
 }
 
 
+// --- CLICK-TO-DOWNLOAD TODAY'S DATA ---
+window.downloadTodayData = function(type) {
+    let dataToDownload = todayExportData[type];
+    
+    if (!dataToDownload || dataToDownload.length === 0) {
+        return alert("No meters found in this category for today!");
+    }
+
+    let filename = "";
+    if (type === 'disc') filename = "Today_Disconnected_Meters";
+    if (type === 'req') filename = "Today_RC_Requests";
+    if (type === 'recon') filename = "Today_Reconnected_Done";
+    
+    // Trigger the existing CSV download function
+    triggerCSVDownload(dataToDownload, filename);
+};
 
