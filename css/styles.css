@@ -1,269 +1,339 @@
 /* css/styles.css */
-
+/* Fix Apply Filters Button Wrapping */
+.btn-group {
+    flex-wrap: nowrap !important;
+}
+.btn-primary, .btn-secondary {
+    white-space: nowrap !important; 
+    min-width: max-content !important; 
+}
 :root {
-    --bg-color: #f1f5f9;
-    --card-bg: #ffffff;
+    /* Glassmorphism Theme Background (Subtle Blue-Grey Mesh) */
+    --main-bg: linear-gradient(135deg, #e0e7ff 0%, #f1f5f9 50%, #cbd5e1 100%);
+    
+    /* Glassmorphism Base Values */
+    --glass-bg-heavy: rgba(255, 255, 255, 0.75); /* For Header/Charts */
+    --glass-bg-light: rgba(255, 255, 255, 0.55); /* For KPIs/Filters */
+    --glass-border: rgba(255, 255, 255, 0.8);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+    
+    /* Text & Status Colors */
     --text-main: #0f172a;
-    --text-muted: #64748b;
-    --border-color: #e2e8f0;
+    --text-muted: #475569;
+    --border-color: rgba(0, 0, 0, 0.05);
     --primary: #0284c7;
     --primary-hover: #0369a1;
     --success: #16a34a;
     --danger: #dc2626;
     --warning: #ca8a04;
-    --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-body { background-color: var(--bg-color); color: var(--text-main); line-height: 1.5; overflow-x: hidden; }
 
-.container { padding: 1.5rem; max-width: 1600px; margin: 0 auto; width: 100%; }
+/* 1. BODY (Needs gradient for Glass effect to work) */
+body { 
+    background: var(--main-bg); 
+    background-attachment: fixed;
+    color: var(--text-main); 
+    line-height: 1.5; 
+    overflow-x: hidden; 
+}
 
-/* --- Header --- */
-.top-nav { background: #0f172a; color: white; padding: 1rem 1.5rem; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; box-shadow: var(--shadow-md); }
-.logo-area h1 { font-size: 1.25rem; font-weight: 600; margin: 0; }
-.logo-area span { color: #94a3b8; font-size: 1rem; margin-left: 8px; }
-.status-badge { font-size: 0.85rem; padding: 6px 12px; border-radius: 20px; background: rgba(255,255,255,0.1); font-weight: 500; white-space: nowrap; }
+.container { padding: 1.5rem; max-width: 1700px; margin: 0 auto; width: 100%; }
 
-/* --- Global Boxes --- */
-.box { background: var(--card-bg); border-radius: 10px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); padding: 1.5rem; margin-bottom: 1.5rem; width: 100%; }
-.section-title { font-size: 1.1rem; font-weight: 600; color: var(--text-main); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); }
+/* =========================================
+   2. FROSTED GLASS HEADER
+   ========================================= */
+.top-nav { 
+    background: var(--glass-bg-heavy); 
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    padding: 0.8rem 1.5rem; 
+    display: flex; 
+    flex-wrap: nowrap; 
+    justify-content: space-between; 
+    align-items: center; 
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
 
-/* --- Filters (Bulletproof Flexbox) --- */
-.global-filters { padding: 1rem 1.5rem; }
+.logo-area { display: flex; align-items: center; gap: 15px; }
+.dashboard-logo { height: 40px; width: auto; object-fit: contain; }
+
+.logo-area h1 { 
+    color: #ea580c; /* Orange Title */
+    font-size: 1.25rem; 
+    font-weight: 700; 
+    margin: 0; 
+    white-space: nowrap; 
+}
+.logo-area span { color: #94a3b8; font-size: 1rem; margin-left: 5px; }
+
+.pkg-switcher {
+    display: flex;
+    background: rgba(0,0,0,0.03); /* Subtle indent effect */
+    padding: 3px;
+    border-radius: 8px;
+    margin-left: 10px;
+    border: 1px solid var(--glass-border);
+}
+
+.pkg-btn {
+    background: transparent; border: none; color: var(--text-muted);
+    padding: 4px 12px; border-radius: 6px; cursor: pointer;
+    font-size: 0.8rem; font-weight: 600; transition: 0.2s;
+}
+.pkg-btn.active { background: var(--primary); color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+.refresh-btn { margin-left: 10px; padding: 4px 8px; font-size: 1rem; background: rgba(0,0,0,0.03); border: 1px solid var(--glass-border); border-radius: 6px; cursor: pointer; }
+.refresh-btn:hover { background: rgba(0,0,0,0.06); }
+.status-badge { font-size: 0.85rem; padding: 6px 12px; border-radius: 20px; background: rgba(0,0,0,0.03); border: 1px solid var(--glass-border); font-weight: 600; }
+
+/* =========================================
+   3. FROSTED GLASS BOXES (Filters, Charts, Tables)
+   ========================================= */
+.box { 
+    background: var(--glass-bg-heavy); 
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 12px; 
+    box-shadow: var(--glass-shadow); 
+    border: 1px solid var(--glass-border); 
+    padding: 1.5rem; 
+    margin-bottom: 1.5rem; 
+    width: 100%; 
+}
+
+/* Filter Section Tweaks */
 .filter-grid { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
+.input-group { display: flex; flex-direction: column; flex: 1 1 130px; min-width: 130px; }
+.input-group label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; }
 
-.input-group { 
-    display: flex; 
-    flex-direction: column; 
-    flex: 1 1 140px; /* Allows growing, shrinking, with a base of 140px */
-    min-width: 140px; 
+/* Glass Inputs */
+/* Fix for Input Sizing */
+.input-group select, .input-group input { 
+    padding: 0 0.75rem; 
+    border: 1px solid rgba(0,0,0,0.1); 
+    border-radius: 6px; 
+    font-size: 0.9rem; 
+    background: rgba(255, 255, 255, 0.6); 
+    backdrop-filter: blur(4px);
+    transition: 0.3s;
+    height: 38px; /* Exact match to button height */
+    box-sizing: border-box;
 }
+.input-group select:focus, .input-group input:focus { border-color: var(--primary); background: #fff; outline: none; }
 
-.input-group label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; }
-.input-group select, .input-group input { padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; outline: none; background: #f8fafc; width: 100%; }
-.input-group select:focus, .input-group input:focus { border-color: var(--primary); background: #fff; }
+.date-group { flex: 2 1 280px; }
+.date-inputs { display: flex; align-items: center; gap: 0.5rem; }
+.date-inputs input { flex: 1; }
 
-.date-group { flex: 2 1 280px; min-width: 280px; }
-.date-inputs { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.5rem; width: 100%; }
-.date-inputs input { flex: 1; min-width: 100px; }
-.date-inputs span { color: var(--text-muted); font-size: 0.85rem; }
-
-/* Fixed overlapping buttons */
-.btn-group { 
-    flex-direction: row; 
-    flex: 1 1 200px; 
-    min-width: 200px; 
-    display: flex; 
-    gap: 0.5rem; 
-}
+.btn-group { display: flex; gap: 0.5rem; flex: 1 1 200px; }
+/* Fix for Button Sizing & Alignment */
 .btn-primary, .btn-secondary { 
     flex: 1; 
-    padding: 0.5rem 0.5rem; 
+    padding: 0 1rem; /* Removed top/bottom padding to let height control it */
     border-radius: 6px; 
     cursor: pointer; 
-    font-weight: 500; 
+    font-weight: 600; 
     font-size: 0.9rem; 
-    text-align: center; 
-    border: none;
-    white-space: nowrap;
+    border: none; 
+    transition: 0.2s;
+    white-space: nowrap; /* Prevents text from breaking into two lines */
+    height: 38px; /* Locks the exact height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .btn-primary { background: var(--primary); color: white; }
 .btn-primary:hover { background: var(--primary-hover); }
-.btn-secondary { background: white; color: var(--text-main); border: 1px solid var(--border-color); }
-.btn-secondary:hover { background: var(--bg-color); }
+.btn-secondary { background: rgba(255,255,255,0.5); color: var(--text-main); border: 1px solid var(--glass-border); }
+.btn-secondary:hover { background: rgba(255,255,255,0.9); }
 
-/* --- KPIs --- */
+/* =========================================
+   4. FROSTED GLASS KPIs
+   ========================================= */
 .kpi-grid { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
-.kpi-card { flex: 1 1 150px; min-width: 150px; padding: 1.2rem 1rem; border-top: 4px solid var(--primary); display: flex; flex-direction: column; align-items: center; background: var(--card-bg); border-radius: 8px; box-shadow: var(--shadow-sm); }
-.kpi-title { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.2rem; text-transform: uppercase; text-align: center;}
-.kpi-value { font-size: 1.8rem; font-weight: 700; color: var(--text-main); line-height: 1.2; }
-.kpi-pct { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
 .kpi-card { 
+    background: var(--glass-bg-light); 
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    flex: 1 1 150px; 
+    min-width: 150px; 
     padding: 1.25rem 1rem; 
-    border-top: 4px solid var(--primary); 
     display: flex; 
     flex-direction: column; 
-    justify-content: center; 
     align-items: center; 
     text-align: center; 
-    background: var(--card-bg);
-    border-radius: 8px;
-    box-shadow: var(--shadow-sm);
-    position: relative;
-    cursor: pointer; /* Makes it look clickable */
-    transition: transform 0.2s ease, box-shadow 0.2s ease; /* Smooth hover */
+    border-radius: 12px;
+    box-shadow: var(--glass-shadow);
+    cursor: pointer; 
+    transition: transform 0.2s ease, background 0.2s ease; 
 }
+.kpi-card:hover { transform: translateY(-5px); background: rgba(255,255,255,0.8); }
 
-/* Hover effect so users know they can click it */
-.kpi-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
-}
+.kpi-title { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.2rem; text-transform: uppercase; }
+.kpi-value { font-size: 1.8rem; font-weight: 800; line-height: 1.2; }
 
-/* Styling for the small download text */
-.kpi-download-hint {
-    font-size: 0.65rem;
-    color: var(--text-muted);
-    margin-top: 8px;
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-}
-/* Styling for the Package Switcher */
-.logo-area {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
+/* Sub-stats for RF/Cellular */
+.kpi-sub-stats { font-size: 0.65rem; font-weight: 600; color: var(--text-muted); margin-top: 8px; background: rgba(255,255,255,0.6); padding: 3px 8px; border-radius: 12px; border: 1px solid var(--glass-border); }
 
-.pkg-switcher {
-    display: flex;
-    background: rgba(255, 255, 255, 0.1);
-    padding: 4px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.pkg-btn {
-    background: transparent;
-    border: none;
-    color: #94a3b8;
-    padding: 6px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 600;
-    transition: all 0.2s;
-}
-
-.pkg-btn.active {
-    background: var(--primary);
-    color: white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-/* css/styles.css */
-
-.logo-area {
-    display: flex;
-    align-items: center; /* Vertically centers logo, text, and buttons */
-    gap: 15px;           /* Space between each element */
-}
-
-.dashboard-logo {
-    height: 40px;        /* Matches the height of the text/buttons */
-    width: auto;
-    object-fit: contain;
-}
-
-.logo-area h1 {
-    font-size: 1.25rem;
-    margin: 0;
-    white-space: nowrap; /* Prevents title from breaking into two lines */
-}
-
-/* Make sure the switcher stays compact in the line */
-.pkg-switcher {
-    display: flex;
-    background: rgba(255, 255, 255, 0.1);
-    padding: 2px;
-    border-radius: 6px;
-    margin-left: 10px;
-}
-
-.pkg-btn {
-    padding: 4px 12px;
-    font-size: 0.8rem;
-}
-
-/* Adjust the badge on the far right */
-.status-badge {
-    margin-left: auto; /* Pushes the status badge to the extreme right */
-}
-
-/* Responsive fix for small screens */
-@media (max-width: 900px) {
-    .logo-area {
-        flex-wrap: wrap; /* Allows wrapping on small tablets */
-        gap: 10px;
-    }
-    .status-badge {
-        display: none; /* Hide status badge on very small screens to save space */
-    }
-}
-.pkg-btn:hover:not(.active) {
-    color: white;
-    background: rgba(255, 255, 255, 0.05);
-}
-.kpi-card:hover .kpi-download-hint {
-    opacity: 1; /* Highlights the download text when hovered */
-    color: var(--primary);
-}
+/* Status Colors & Top Borders */
 .text-green { color: var(--success); }
 .text-red { color: var(--danger); }
 .text-yellow { color: var(--warning); }
-.border-blue { border-top-color: #3b82f6; }
-.border-green { border-top-color: var(--success); }
-.border-red { border-top-color: var(--danger); }
-.border-yellow { border-top-color: var(--warning); }
-.border-purple { border-top-color: #8b5cf6; }
-.border-orange { border-top-color: #f59e0b; }
+.text-orange { color: #ea580c; }
+.text-purple { color: #7e22ce; }
 
-/* --- Charts --- */
+.border-blue { border-top: 4px solid var(--primary); }
+.border-green { border-top: 4px solid var(--success); }
+.border-red { border-top: 4px solid var(--danger); }
+.border-yellow { border-top: 4px solid var(--warning); }
+.border-orange { border-top: 4px solid #ea580c; }
+.border-purple { border-top: 4px solid #7e22ce; }
+
+/* =========================================
+   5. CHARTS, TABLES & EXPORT BUTTONS
+   ========================================= */
 .charts-grid { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 1.5rem; }
 .chart-box { flex: 1 1 400px; min-width: 300px; }
-.chart-box.full-width { flex: 1 1 100%; }
 .canvas-wrapper { position: relative; height: 300px; width: 100%; }
 
-/* --- Tables --- */
 .tables-grid { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 1.5rem; align-items: stretch; }
 .table-box { flex: 1 1 450px; min-width: 300px; overflow: hidden; }
 
-/* Fixes Table Overflow */
+/* Colored Box Headers */
+.box-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 0.5rem; }
+.box-header .section-title { margin-bottom: 0; padding-bottom: 0; font-size: 1.1rem; font-weight: 700; border-bottom: none; }
+
+.title-blue { color: #0284c7; }
+.title-green { color: #16a34a; }
+.title-red { color: #dc2626; }
+.title-yellow { color: #ca8a04; }
+.title-purple { color: #7e22ce; }
+.title-orange { color: #ea580c; }
+
+/* Export Buttons */
+.export-btns { display: flex; gap: 5px; }
+.export-btns button { background: rgba(255,255,255,0.7); border: 1px solid var(--glass-border); border-radius: 4px; padding: 3px 8px; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
+.export-btns button:hover { background: var(--primary); color: white; }
+
+/* Tables styled for Glass */
+/* Tables styled for Glass & Text Wrapping */
 .table-responsive { 
     width: 100%; 
     overflow-x: auto; 
-    -webkit-overflow-scrolling: touch; 
-    border: 1px solid var(--border-color); 
+    border: 1px solid var(--glass-border); 
     border-radius: 8px; 
+    background: rgba(255,255,255,0.4); 
 }
-.data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 600px; }
-.data-table th, .data-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
-.data-table th { background: #f8fafc; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; }
-.data-table tbody tr:hover { background: #f1f5f9; }
-.data-table tr:last-child { font-weight: 700; background: #f8fafc; border-top: 2px solid var(--border-color); }
 
-/* --- Map --- */
-.map-controls { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); }
-.map-filter { display: flex; align-items: center; gap: 0.5rem; flex: 1 1 200px; }
-.map-filter label { font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
-.map-filter select { flex: 1; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); width: 100%; }
-.modern-map { height: 500px; width: 100%; border-radius: 8px; z-index: 1; border: 1px solid var(--border-color); }
+.data-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    font-size: 0.85rem; 
+    table-layout: auto; /* Allows dynamic resizing */
+}
+
+.data-table th, .data-table td { 
+    padding: 0.75rem; 
+    text-align: left; 
+    border-bottom: 1px solid rgba(0,0,0,0.05); 
+    white-space: normal; /* THIS ALLOWS THE TEXT TO WRAP */
+    word-wrap: break-word;
+    vertical-align: middle; 
+}
+
+.data-table th { 
+    background: rgba(0,0,0,0.03); 
+    font-weight: 700; 
+    color: var(--text-muted); 
+    text-transform: uppercase; 
+    font-size: 0.75rem; 
+}
+
+.data-table tbody tr:hover { 
+    background: rgba(255,255,255,0.6); 
+}
 
 /* =========================================
-   AGGRESSIVE MOBILE FIXES
+   6. MAP & POPUPS
+   ========================================= */
+.map-controls { display: flex; gap: 1rem; margin-bottom: 1rem; background: rgba(255,255,255,0.5); padding: 1rem; border-radius: 8px; border: 1px solid var(--glass-border); }
+.map-filter { display: flex; align-items: center; gap: 0.5rem; flex: 1 1 200px; }
+.map-filter label { font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+.map-filter select { flex: 1; padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.8); }
+.modern-map { height: 500px; width: 100%; border-radius: 8px; z-index: 1; border: 2px solid var(--glass-border); }
+
+/* Custom Pins & Popups */
+.custom-pin svg { filter: drop-shadow(0px 3px 3px rgba(0,0,0,0.5)); }
+.neighbor-list { max-height: 120px; overflow-y: auto; margin-top: 5px; border-top: 1px solid #ccc; padding-top: 5px;}
+.neighbor-item { font-size: 11px; padding: 4px 0; border-bottom: 1px dashed #eee; }
+.n-comm { color: #16a34a; font-weight: bold; }
+.n-recon { color: #0284c7; font-weight: bold; }
+
+/* =========================================
+   7. AGGRESSIVE MOBILE FIXES
    ========================================= */
 @media (max-width: 768px) {
-    .container { padding: 0.5rem; }
-    .box { padding: 1rem; }
+    .top-nav { flex-direction: column; gap: 10px; text-align: center; align-items: center; }
+    .logo-area { flex-wrap: wrap; justify-content: center; }
+    .status-badge { display: none; }
     
-    .top-nav { flex-direction: column; text-align: center; justify-content: center; }
-    .logo-area span { display: block; margin-left: 0; margin-top: 5px; }
-
-    /* Stack inputs on small screens */
-    .filter-grid { flex-direction: column; align-items: stretch; gap: 1rem; }
+    .filter-grid { flex-direction: column; align-items: stretch; }
     .input-group, .date-group, .btn-group { min-width: 100%; flex: 1 1 100%; }
-    
-    /* Stack buttons on top of each other */
     .btn-group { flex-direction: column; gap: 0.75rem; }
-    .btn-primary, .btn-secondary { width: 100%; padding: 0.75rem; }
-
-    .date-inputs { flex-direction: column; align-items: stretch; }
-    .date-inputs span { display: none; } /* Hide "to" */
-
-    .kpi-card { flex: 1 1 45%; } /* Two across on mobile */
+    
+    .kpi-card { flex: 1 1 45%; }
     .canvas-wrapper { height: 250px; }
     .modern-map { height: 400px; }
-    
     .map-controls { flex-direction: column; align-items: stretch; }
 }
+
+/* =========================================
+   8. DARK MODE GLASSMORPHISM
+   ========================================= */
+[data-theme="dark"] {
+    /* Dark Background Gradient */
+    --main-bg: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    
+    /* Dark Frosted Glass */
+    --glass-bg-heavy: rgba(15, 23, 42, 0.75); 
+    --glass-bg-light: rgba(30, 41, 59, 0.65); 
+    --glass-border: rgba(255, 255, 255, 0.1);
+    
+    /* Text & Lines */
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Fix Inputs and Tables for Dark Mode */
+[data-theme="dark"] .input-group select, 
+[data-theme="dark"] .input-group input {
+    background: rgba(15, 23, 42, 0.8);
+    color: var(--text-main);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+[data-theme="dark"] .data-table th { background: rgba(0,0,0,0.3); color: #cbd5e1; }
+[data-theme="dark"] .data-table tbody tr:hover { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .data-table tr:last-child { background: rgba(0,0,0,0.2); }
+
+[data-theme="dark"] .map-controls { background: rgba(15, 23, 42, 0.7); }
+[data-theme="dark"] .btn-secondary { background: rgba(15,23,42,0.6); color: white; }
+[data-theme="dark"] .export-btns button { background: rgba(15,23,42,0.8); }
+
+/* Make dark mode title colors pop against dark backgrounds */
+[data-theme="dark"] .title-blue { color: #38bdf8; }
+[data-theme="dark"] .title-green { color: #4ade80; }
+[data-theme="dark"] .title-red { color: #f87171; }
+[data-theme="dark"] .title-purple { color: #c084fc; }
+[data-theme="dark"] .title-orange { color: #fb923c; }
+
+/* Keep chart legends readable */
+[data-theme="dark"] canvas { filter: drop-shadow(0 0 4px rgba(0,0,0,0.5)); }
