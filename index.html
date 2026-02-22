@@ -13,7 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-    <header class="top-nav">
+   <header class="top-nav">
         <div class="logo-area">
             <img src="js/logo.webp" alt="Logo" class="dashboard-logo">
             <h1>Reconnection Disconnection for CSPDCL <span>(PKG-1 & PKG-3)</span></h1>
@@ -26,6 +26,10 @@
             </div>
             <button onclick="refreshData()" class="btn-secondary refresh-btn" title="Refresh Data">🔄 Refresh</button>
             <button id="theme-btn" onclick="toggleTheme()" class="btn-secondary refresh-btn" title="Toggle Dark Mode">🌙</button>
+            
+            <button id="export-dash-btn" onclick="exportFullDashboardPDF()" class="btn-primary" style="height: 38px; padding: 0 15px; display: flex; align-items: center; gap: 5px;">
+                📄 Export PDF
+            </button>
         </div>
         
         <div id="connection-status" class="status-badge">🟡 Connecting...</div>
@@ -198,13 +202,18 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
+
 
 
 
