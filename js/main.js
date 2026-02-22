@@ -49,6 +49,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('connection-status').innerHTML = `🔴 Error connecting to database`;
         document.getElementById('connection-status').style.color = "#ef4444";
     }
+
+    setInterval(refreshData, 300000); // Auto-refresh data every 5 minutes (300,000 ms)
 });
 
 // --- HELPER FUNCTIONS ---
@@ -964,4 +966,5 @@ window.downloadTodayData = function(type) {
     // Trigger the existing CSV download function
     triggerCSVDownload(dataToDownload, filename);
 };
+
 
