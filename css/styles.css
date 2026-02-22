@@ -310,3 +310,34 @@ body {
     color: #0284c7; /* Blue */
     font-weight: bold; 
 }
+/* --- RESPONSIVE KPI GRID --- */
+
+/* 1. Mobile First (Default) - Stacks everything in 1 column */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+/* 2. Tablet Layout (iPads) - 2 columns */
+@media (min-width: 768px) {
+    .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    /* Make the 5th 'Today' card stretch across both columns on tablet */
+    .kpi-grid .card:nth-child(5) {
+        grid-column: span 2;
+    }
+}
+
+/* 3. Desktop Layout (Laptops/Monitors) - 5 columns with 38/62 ratio */
+@media (min-width: 1200px) {
+    .kpi-grid {
+        grid-template-columns: 1fr 1fr 1fr 1fr 2.6fr;
+    }
+    /* Reset the span so it fits in the row */
+    .kpi-grid .card:nth-child(5) {
+        grid-column: span 1;
+    }
+}
