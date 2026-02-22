@@ -483,107 +483,66 @@ function getAgingBucket(d) {
     if (diff > 30) return "Above 1 Month"; if (diff > 15) return "Above 15 Days"; return "Below 15 Days"; 
 }
 
-// --- ACCORDION AGING TABLE (Swapped Rows/Cols with Drill-Down) ---
 function buildAgingTable(data) {
     const groupByCol = getGroupingColumn();
-    const childCol = getChildColumn(groupByCol);
+    if(document.getElementById('dynamic-aging-title')) document.getElementById('dynamic-aging-title').innerText = `Aging Analysis - ${groupByCol.replace(' Name','').replace('/DC','')}`;
     
-    let displayHeader = groupByCol.replace(' Name', '').replace('/DC', '');
-    if(document.getElementById('dynamic-aging-title')) {
-        document.getElementById('dynamic-aging-title').innerText = `Aging Analysis - ${displayHeader}`;
-    }
-    
-    // Only look at disconnected meters for Aging
     const discData = data.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
+    const cols = [...new Set(discData.map(r => safeGet(r, groupByCol)).filter(Boolean))].sort();
     const buckets = ["Above 3 Months", "Above 2 Months", "Above 1 Month", "Above 15 Days", "Below 15 Days"];
     
-    const tableData = {};
-    const grandTotals = { "Above 3 Months": 0, "Above 2 Months": 0, "Above 1 Month": 0, "Above 15 Days": 0, "Below 15 Days": 0, "Total": 0 };
-
+    const agingData = {}; 
+    buckets.forEach(b => { agingData[b] = { T: 0 }; cols.forEach(c => agingData[b][c] = 0); });
+    
     discData.forEach(row => {
-        const key = safeGet(row, groupByCol) || 'Unknown';
-        if (!tableData[key]) {
-            tableData[key] = { "Above 3 Months": 0, "Above 2 Months": 0, "Above 1 Month": 0, "Above 15 Days": 0, "Below 15 Days": 0, "Total": 0, children: {} };
-        }
-        
         const b = getAgingBucket(parseDateString(safeGet(row, 'disc. date')));
-
-        if (buckets.includes(b)) {
-            // Add to Parent
-            tableData[key][b]++;
-            tableData[key].Total++;
-            
-            // Add to Grand Totals
-            grandTotals[b]++;
-            grandTotals.Total++;
-
-            // Add to Child (if drill-down exists)
-            if (childCol) {
-                const cKey = safeGet(row, childCol) || 'Unknown';
-                if (!tableData[key].children[cKey]) {
-                    tableData[key].children[cKey] = { "Above 3 Months": 0, "Above 2 Months": 0, "Above 1 Month": 0, "Above 15 Days": 0, "Below 15 Days": 0, "Total": 0 };
-                }
-                tableData[key].children[cKey][b]++;
-                tableData[key].children[cKey].Total++;
-            }
-        }
+        const c = safeGet(row, groupByCol);
+        if (agingData[b] && c && agingData[b][c] !== undefined) { agingData[b][c]++; agingData[b].T++; }
     });
 
-    // 1. Build Header
-    document.querySelector('#aging-table thead').innerHTML = `
-        <tr>
-            <th>${displayHeader}</th>
-            <th>> 3 Months</th>
-            <th>> 2 Months</th>
-            <th>> 1 Month</th>
-            <th>> 15 Days</th>
-            <th>< 15 Days</th>
-            <th>Total</th>
-        </tr>`;
-        
-    // 2. Build Body Rows
+    document.querySelector('#aging-table thead').innerHTML = `<tr><th>Aging Bucket</th>${cols.map(c => `<th>${c}</th>`).join('')}<th>Total</th></tr>`;
     const tbody = document.querySelector('#aging-table tbody'); 
     tbody.innerHTML = '';
     
-    let rowIndex = 0;
-    for (const [k, v] of Object.entries(tableData)) {
-        rowIndex++;
-        const hasChildren = childCol && Object.keys(v.children).length > 0;
-        
-        const rightArrow = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
-        
-        const expandIcon = hasChildren 
-            ? `<span class="toggle-icon" style="margin-right:8px; display:inline-flex; align-items:center;">${rightArrow}</span>` 
-            : `<span style="display:inline-block; width:24px; margin-right:8px;"></span>`;
-        
-        // Parent Row
-        tbody.innerHTML += `<tr class="parent-row" ${hasChildren ? `style="cursor:pointer;" onclick="toggleParentRow(this, 'aging-child-row-${rowIndex}')"` : ''}>
-            <td><div style="display:flex; align-items:center;">${expandIcon}<strong>${k}</strong></div></td>
-            <td>${v["Above 3 Months"]}</td><td>${v["Above 2 Months"]}</td><td>${v["Above 1 Month"]}</td><td>${v["Above 15 Days"]}</td><td>${v["Below 15 Days"]}</td><td><strong>${v.Total}</strong></td>
-        </tr>`;
+    const grandTotals = { Total: 0 };
+    cols.forEach(c => grandTotals[c] = 0);
 
-        // Child Rows (Hidden by default)
-        if (hasChildren) {
-            for (const [cKey, cVal] of Object.entries(v.children)) {
-                tbody.innerHTML += `<tr class="child-row aging-child-row-${rowIndex}" style="display:none;">
-                    <td class="child-cell" style="padding-left: 2rem;">&#8627; ${cKey}</td>
-                    <td class="child-cell">${cVal["Above 3 Months"]}</td><td class="child-cell">${cVal["Above 2 Months"]}</td><td class="child-cell">${cVal["Above 1 Month"]}</td><td class="child-cell">${cVal["Above 15 Days"]}</td><td class="child-cell">${cVal["Below 15 Days"]}</td><td class="child-cell"><strong>${cVal.Total}</strong></td>
-                </tr>`;
-            }
-        }
-    }
+    buckets.forEach(b => {
+        let html = `<td>${b}</td>`; 
+        cols.forEach(c => { html += `<td>${agingData[b][c]}</td>`; grandTotals[c] += agingData[b][c]; });
+        grandTotals.Total += agingData[b].T; 
+        tbody.innerHTML += `<tr>${html}<td><strong>${agingData[b].T}</strong></td></tr>`;
+    });
 
-    // 3. Build Grand Total Row
-    tbody.innerHTML += `<tr style="background: rgba(0,0,0,0.05);">
-        <td><strong>Grand Total</strong></td>
-        <td><strong>${grandTotals["Above 3 Months"]}</strong></td>
-        <td><strong>${grandTotals["Above 2 Months"]}</strong></td>
-        <td><strong>${grandTotals["Above 1 Month"]}</strong></td>
-        <td><strong>${grandTotals["Above 15 Days"]}</strong></td>
-        <td><strong>${grandTotals["Below 15 Days"]}</strong></td>
-        <td><strong>${grandTotals.Total}</strong></td>
-    </tr>`;
+    let totalHtml = `<td><strong>Grand Total</strong></td>`;
+    cols.forEach(c => totalHtml += `<td><strong>${grandTotals[c]}</strong></td>`);
+    totalHtml += `<td><strong>${grandTotals.Total}</strong></td>`;
+    tbody.innerHTML += `<tr style="background: rgba(0,0,0,0.05);">${totalHtml}</tr>`;
 }
+
+// --- MAP & NEIGHBORS (WITH JITTER FOR OVERLAPPING PINS) ---
+function updateMapFilters() {
+    const mapData = filteredData.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
+    
+    let cData = mapData;
+    if (currentMapComm === "NonComm") cData = cData.filter(r => (safeGet(r, 'Comm Status')||"").toLowerCase().includes('non'));
+    else if (currentMapComm === "Comm") cData = cData.filter(r => !(safeGet(r, 'Comm Status')||"").toLowerCase().includes('non'));
+
+    let zData = currentMapAging !== "ALL" ? cData.filter(r => getAgingBucket(parseDateString(safeGet(r, 'disc. date'))) === currentMapAging) : cData;
+    let aData = currentMapZone !== "ALL" ? cData.filter(r => safeGet(r, 'Zone/DC Name') === currentMapZone) : cData;
+    
+    repopulateDropdown('map-zone-filter', zData, 'Zone/DC Name', currentMapZone);
+    
+    const validAgings = [...new Set(aData.map(r => getAgingBucket(parseDateString(safeGet(r, 'disc. date')))).filter(Boolean))];
+    const aSel = document.getElementById('map-aging-filter'); aSel.innerHTML = `<option value="ALL">All Available Aging</option>`;
+    ["Above 3 Months", "Above 2 Months", "Above 1 Month", "Above 15 Days", "Below 15 Days"].forEach(v => {
+        if(validAgings.includes(v)) {
+            const opt = document.createElement('option'); opt.value = v; opt.textContent = v;
+            if(v === currentMapAging) opt.selected = true; aSel.appendChild(opt);
+        }
+    });
+}
+
 function getDistance(lat1, lon1, lat2, lon2) {
     const R = 6371e3; const p1 = lat1 * Math.PI/180; const p2 = lat2 * Math.PI/180;
     const dp = (lat2-lat1) * Math.PI/180; const dl = (lon2-lon1) * Math.PI/180;
@@ -774,8 +733,6 @@ function toggleTheme() {
         if(themeBtn) themeBtn.innerText = '☀️'; 
     }
 }
-
-
 
 
 
