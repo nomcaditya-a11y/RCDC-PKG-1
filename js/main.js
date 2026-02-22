@@ -483,43 +483,119 @@ function getAgingBucket(d) {
     if (diff > 30) return "Above 1 Month"; if (diff > 15) return "Above 15 Days"; return "Below 15 Days"; 
 }
 
+// --- ACCORDION AGING TABLE (Swapped Rows/Cols, Drill-Down & Beautiful Alignment) ---
 function buildAgingTable(data) {
     const groupByCol = getGroupingColumn();
-    if(document.getElementById('dynamic-aging-title')) document.getElementById('dynamic-aging-title').innerText = `Aging Analysis - ${groupByCol.replace(' Name','').replace('/DC','')}`;
+    const childCol = getChildColumn(groupByCol);
     
+    let displayHeader = groupByCol.replace(' Name', '').replace('/DC', '');
+    if(document.getElementById('dynamic-aging-title')) {
+        document.getElementById('dynamic-aging-title').innerText = `Aging Analysis - ${displayHeader}`;
+    }
+    
+    // Only look at disconnected meters for Aging
     const discData = data.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
-    const cols = [...new Set(discData.map(r => safeGet(r, groupByCol)).filter(Boolean))].sort();
     const buckets = ["Above 3 Months", "Above 2 Months", "Above 1 Month", "Above 15 Days", "Below 15 Days"];
     
-    const agingData = {}; 
-    buckets.forEach(b => { agingData[b] = { T: 0 }; cols.forEach(c => agingData[b][c] = 0); });
-    
+    const tableData = {};
+    const grandTotals = { "Above 3 Months": 0, "Above 2 Months": 0, "Above 1 Month": 0, "Above 15 Days": 0, "Below 15 Days": 0, "Total": 0 };
+
+    // Grouping the Data
     discData.forEach(row => {
+        const key = safeGet(row, groupByCol) || 'Unknown';
+        if (!tableData[key]) {
+            tableData[key] = { "Above 3 Months": 0, "Above 2 Months": 0, "Above 1 Month": 0, "Above 15 Days": 0, "Below 15 Days": 0, "Total": 0, children: {} };
+        }
+        
         const b = getAgingBucket(parseDateString(safeGet(row, 'disc. date')));
-        const c = safeGet(row, groupByCol);
-        if (agingData[b] && c && agingData[b][c] !== undefined) { agingData[b][c]++; agingData[b].T++; }
+
+        if (buckets.includes(b)) {
+            // Add to Parent
+            tableData[key][b]++;
+            tableData[key].Total++;
+            
+            // Add to Grand Totals
+            grandTotals[b]++;
+            grandTotals.Total++;
+
+            // Add to Child (if drill-down exists)
+            if (childCol) {
+                const cKey = safeGet(row, childCol) || 'Unknown';
+                if (!tableData[key].children[cKey]) {
+                    tableData[key].children[cKey] = { "Above 3 Months": 0, "Above 2 Months": 0, "Above 1 Month": 0, "Above 15 Days": 0, "Below 15 Days": 0, "Total": 0 };
+                }
+                tableData[key].children[cKey][b]++;
+                tableData[key].children[cKey].Total++;
+            }
+        }
     });
 
-    document.querySelector('#aging-table thead').innerHTML = `<tr><th>Aging Bucket</th>${cols.map(c => `<th>${c}</th>`).join('')}<th>Total</th></tr>`;
+    // 1. Build Header (Neatly aligned and shortened for clean UI)
+    document.querySelector('#aging-table thead').innerHTML = `
+        <tr>
+            <th>${displayHeader}</th>
+            <th style="text-align: center;">> 3 Months</th>
+            <th style="text-align: center;">> 2 Months</th>
+            <th style="text-align: center;">> 1 Month</th>
+            <th style="text-align: center;">> 15 Days</th>
+            <th style="text-align: center;">< 15 Days</th>
+            <th style="text-align: center;">Total</th>
+        </tr>`;
+        
+    // 2. Build Body Rows
     const tbody = document.querySelector('#aging-table tbody'); 
     tbody.innerHTML = '';
     
-    const grandTotals = { Total: 0 };
-    cols.forEach(c => grandTotals[c] = 0);
+    let rowIndex = 0;
+    // Clean SVG Right Arrow
+    const rightArrow = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
 
-    buckets.forEach(b => {
-        let html = `<td>${b}</td>`; 
-        cols.forEach(c => { html += `<td>${agingData[b][c]}</td>`; grandTotals[c] += agingData[b][c]; });
-        grandTotals.Total += agingData[b].T; 
-        tbody.innerHTML += `<tr>${html}<td><strong>${agingData[b].T}</strong></td></tr>`;
-    });
+    for (const [k, v] of Object.entries(tableData)) {
+        rowIndex++;
+        const hasChildren = childCol && Object.keys(v.children).length > 0;
+        
+        const expandIcon = hasChildren 
+            ? `<span class="toggle-icon" style="margin-right:8px; display:inline-flex; align-items:center;">${rightArrow}</span>` 
+            : `<span style="display:inline-block; width:24px; margin-right:8px;"></span>`;
+        
+        // Parent Row (Numbers centered for better look)
+        tbody.innerHTML += `<tr class="parent-row" ${hasChildren ? `style="cursor:pointer;" onclick="toggleParentRow(this, 'aging-child-row-${rowIndex}')"` : ''}>
+            <td><div style="display:flex; align-items:center;">${expandIcon}<strong>${k}</strong></div></td>
+            <td style="text-align: center;">${v["Above 3 Months"]}</td>
+            <td style="text-align: center;">${v["Above 2 Months"]}</td>
+            <td style="text-align: center;">${v["Above 1 Month"]}</td>
+            <td style="text-align: center;">${v["Above 15 Days"]}</td>
+            <td style="text-align: center;">${v["Below 15 Days"]}</td>
+            <td style="text-align: center; color: var(--danger);"><strong>${v.Total}</strong></td>
+        </tr>`;
 
-    let totalHtml = `<td><strong>Grand Total</strong></td>`;
-    cols.forEach(c => totalHtml += `<td><strong>${grandTotals[c]}</strong></td>`);
-    totalHtml += `<td><strong>${grandTotals.Total}</strong></td>`;
-    tbody.innerHTML += `<tr style="background: rgba(0,0,0,0.05);">${totalHtml}</tr>`;
+        // Child Rows (Hidden by default, aligned cleanly)
+        if (hasChildren) {
+            for (const [cKey, cVal] of Object.entries(v.children)) {
+                tbody.innerHTML += `<tr class="child-row aging-child-row-${rowIndex}" style="display:none;">
+                    <td class="child-cell" style="padding-left: 2.5rem; border-left: 2px solid var(--primary);">&#8627; ${cKey}</td>
+                    <td class="child-cell" style="text-align: center;">${cVal["Above 3 Months"]}</td>
+                    <td class="child-cell" style="text-align: center;">${cVal["Above 2 Months"]}</td>
+                    <td class="child-cell" style="text-align: center;">${cVal["Above 1 Month"]}</td>
+                    <td class="child-cell" style="text-align: center;">${cVal["Above 15 Days"]}</td>
+                    <td class="child-cell" style="text-align: center;">${cVal["Below 15 Days"]}</td>
+                    <td class="child-cell" style="text-align: center; color: var(--danger);"><strong>${cVal.Total}</strong></td>
+                </tr>`;
+            }
+        }
+    }
+
+    // 3. Build Grand Total Row
+    tbody.innerHTML += `<tr style="background: rgba(0,0,0,0.05);">
+        <td><strong>Grand Total</strong></td>
+        <td style="text-align: center;"><strong>${grandTotals["Above 3 Months"]}</strong></td>
+        <td style="text-align: center;"><strong>${grandTotals["Above 2 Months"]}</strong></td>
+        <td style="text-align: center;"><strong>${grandTotals["Above 1 Month"]}</strong></td>
+        <td style="text-align: center;"><strong>${grandTotals["Above 15 Days"]}</strong></td>
+        <td style="text-align: center;"><strong>${grandTotals["Below 15 Days"]}</strong></td>
+        <td style="text-align: center; color: var(--danger);"><strong>${grandTotals.Total}</strong></td>
+    </tr>`;
 }
-
 // --- MAP & NEIGHBORS (WITH JITTER FOR OVERLAPPING PINS) ---
 function updateMapFilters() {
     const mapData = filteredData.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
@@ -733,6 +809,7 @@ function toggleTheme() {
         if(themeBtn) themeBtn.innerText = '☀️'; 
     }
 }
+
 
 
 
