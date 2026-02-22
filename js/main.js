@@ -738,26 +738,164 @@ function downloadKPIData(type) {
     triggerCSVDownload(data, `${type}_Report`);
 }
 
-async function exportBoxData(type, format, elementId) {
-    let data = filteredData;
-    if(type === 'comm') data = filteredData.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
+// --- EXPORT LOGIC (RAW DATA & PDF TABLES) ---
 
-    if (format === 'csv') triggerCSVDownload(data, `${type}_Box_Data`);
-    else if (format === 'pdf') {
-        const element = document.getElementById(elementId);
-        if (!element) return alert("Error finding element.");
+// 1. Full Dashboard Image-to-PDF
+async function exportFullDashboardPDF() {
+    const btn = document.getElementById('export-dash-btn');
+    const originalText = btn.innerText;
+    btn.innerText = "⏳ Generating...";
+    btn.disabled = true;
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const element = document.body; // Captures the whole page
         
-        const canvas = await html2canvas(element, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jspdf.jsPDF({ orientation: 'landscape' });
+        // Take a high-res screenshot of the dashboard
+        const canvas = await html2canvas(element, { scale: 1.5, useCORS: true, backgroundColor: "#f1f5f9" });
+        const imgData = canvas.toDataURL('image/jpeg', 0.8);
         
-        const imgProps = pdf.getImageProperties(imgData);
+        const pdf = new jsPDF('p', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`RCDC_${type}_Report.pdf`);
+        let heightLeft = pdfHeight;
+        let position = 0;
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        // Add pages if the dashboard is very long
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+        while (heightLeft > 0) {
+            position = heightLeft - pdfHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+            heightLeft -= pageHeight;
+        }
+        
+        pdf.save(`DCRC_Full_Dashboard_${new Date().toISOString().slice(0,10)}.pdf`);
+    } catch (err) {
+        console.error(err);
+        alert("Error generating full PDF.");
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
     }
+}
+
+// 2. Individual Box PDF Tables & CSV
+function exportBoxData(type, format) {
+    // If CSV, download the raw meter-by-meter data exactly like before
+    if (format === 'csv') {
+        let rawExportData = filteredData;
+        if(type === 'comm' || type === 'aging') {
+            rawExportData = filteredData.filter(r => r._isBacklog && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
+        }
+        triggerCSVDownload(rawExportData, `${type}_Raw_Data`);
+        return;
+    }
+
+    // If PDF, generate a clean, selectable TEXT TABLE of the aggregated data
+    if (format === 'pdf') {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let head = [];
+        let body = [];
+        let title = "";
+
+        const groupByCol = getGroupingColumn();
+
+        if (type === 'region') {
+            title = `Total Disconnections Analysis - ${groupByCol}`;
+            head = [[groupByCol, 'Total Disconnections']];
+            const counts = filteredData.filter(r => r._isDValid).reduce((acc, row) => {
+                const key = safeGet(row, groupByCol) || 'Unknown';
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+            }, {});
+            for(let [k,v] of Object.entries(counts)) body.push([k, v]);
+        } 
+        else if (type === 'comm') {
+            title = `Still Disconnected - Comm Status`;
+            head = [['Comm Status', 'Total Meters']];
+            const discData = filteredData.filter(r => r._isBacklog && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
+            const counts = discData.reduce((acc, row) => {
+                const s = safeGet(row, 'Comm Status') || 'Unknown';
+                acc[s] = (acc[s] || 0) + 1;
+                return acc;
+            }, {});
+            for(let [k,v] of Object.entries(counts)) body.push([k, v]);
+        }
+        else if (type === 'progress') {
+            title = `DCRC Progress Analysis - ${groupByCol}`;
+            head = [[groupByCol, 'Reconnected', 'Disconnected', 'Pending', 'Total']];
+            
+            // Re-aggregate data exactly as shown on the web table
+            const tableData = {};
+            filteredData.forEach(row => {
+                const key = safeGet(row, groupByCol) || 'Unknown';
+                if (!tableData[key]) tableData[key] = { r: 0, d: 0, p: 0, t: 0 };
+                
+                let s = (safeGet(row, 'Status') || "").toLowerCase();
+                if (row._isRValid && s.includes('recon')) tableData[key].r++;
+                if (row._isBacklog) {
+                    if (s.includes('disc')) tableData[key].d++;
+                    else if (s.includes('pend')) tableData[key].p++;
+                }
+                tableData[key].t = tableData[key].r + tableData[key].d + tableData[key].p;
+            });
+            for(let [k,v] of Object.entries(tableData)) {
+                body.push([k, v.r, v.d, v.p, v.t]);
+            }
+        }
+        else if (type === 'aging') {
+            title = `Aging Analysis - ${groupByCol}`;
+            const discData = filteredData.filter(r => r._isBacklog && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
+            const cols = [...new Set(discData.map(r => safeGet(r, groupByCol)).filter(Boolean))].sort();
+            
+            // Create dynamic headers based on regions
+            head = [['Aging Bucket', ...cols, 'Total']];
+            const buckets = ["Above 3 Months", "Above 2 Months", "Above 1 Month", "Above 15 Days", "Below 15 Days"];
+            
+            const agingData = {}; 
+            buckets.forEach(b => { agingData[b] = { T: 0 }; cols.forEach(c => agingData[b][c] = 0); });
+            
+            discData.forEach(row => {
+                const b = getAgingBucket(parseDateString(safeGet(row, 'disc. date')));
+                const c = safeGet(row, groupByCol);
+                if (agingData[b] && c && agingData[b][c] !== undefined) { agingData[b][c]++; agingData[b].T++; }
+            });
+
+            buckets.forEach(b => {
+                let row = [b];
+                cols.forEach(c => row.push(agingData[b][c]));
+                row.push(agingData[b].T);
+                body.push(row);
+            });
+        }
+
+        // Draw the PDF with real text data (AutoTable)
+        doc.text(title, 14, 15);
+        doc.autoTable({
+            head: head,
+            body: body,
+            startY: 20,
+            theme: 'grid',
+            styles: { fontSize: 9, font: 'helvetica' },
+            headStyles: { fillColor: [2, 132, 199] } // Genus Brand Blue
+        });
+        
+        doc.save(`RCDC_${type}_Report_${new Date().toISOString().slice(0,10)}.pdf`);
+    }
+}
+
+function triggerCSVDownload(dataArray, filename) {
+    if (!dataArray || dataArray.length === 0) return alert("No data to download!");
+    const blob = new Blob([Papa.unparse(dataArray)], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `RCDC_${filename}_${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
 }
 
 function triggerCSVDownload(dataArray, filename) {
@@ -809,6 +947,7 @@ function toggleTheme() {
         if(themeBtn) themeBtn.innerText = '☀️'; 
     }
 }
+
 
 
 
