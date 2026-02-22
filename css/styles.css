@@ -301,3 +301,12 @@ body {
     .map-controls { flex-direction: column; align-items: stretch; }
     .map-filter { flex-direction: column; align-items: stretch; }
 }
+/* Map Popup Neighbor Status Colors */
+.n-comm { 
+    color: #16a34a; /* Green */
+    font-weight: bold; 
+}
+.n-recon { 
+    color: #0284c7; /* Blue */
+    font-weight: bold; 
+}
