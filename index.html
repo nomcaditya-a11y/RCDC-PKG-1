@@ -92,17 +92,34 @@
                 <h3 id="kpi-pending" class="kpi-value text-yellow">0</h3>
                 <div class="kpi-sub-stats" id="sub-pend"></div>
             </div>
-           <div class="card kpi-card border-orange" onclick="downloadKPIData('today-disc')" title="Click to download CSV">
-                <p class="kpi-title">Today Disconnected</p>
-                <h3 id="kpi-today-disc" class="kpi-value text-orange">0</h3>
-                <div class="kpi-sub-stats" id="sub-today-disc"></div>
-            </div>
+          <div class="kpi-card" style="grid-column: span 2; display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid #6366f1;">
+            <h3 style="text-align: center; color: #475569; letter-spacing: 1px; margin-bottom: 15px;">TODAY'S FIELD ACTIVITY</h3>
+            
+            <div style="display: flex; justify-content: space-around; text-align: center; width: 100%;">
+                
+                <div onclick="downloadTodayData('disc')" style="cursor: pointer; padding: 5px; border-radius: 8px;" title="Click to download Excel data" onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor='transparent'">
+                    <h4 style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">DISCONNECTED 📥</h4>
+                    <p id="kpi-today-disc" style="font-size: 1.8rem; font-weight: bold; color: #f97316; margin-top: 5px;">0</p>
+                    <div id="sub-today-disc" style="font-size: 0.7rem; color: #64748b; margin-top: 3px; font-weight: 500;">Cell: 0 | RF: 0</div>
+                </div>
+                
+                <div style="width: 1px; background-color: #e2e8f0; height: 50px; margin-top: 5px;"></div>
+                
+                <div onclick="downloadTodayData('req')" style="cursor: pointer; padding: 5px; border-radius: 8px;" title="Click to download Excel data" onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor='transparent'">
+                    <h4 style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">RC REQUESTS 📥</h4>
+                    <p id="kpi-today-req" style="font-size: 1.8rem; font-weight: bold; color: #0ea5e9; margin-top: 5px;">0</p>
+                    <div id="sub-today-req" style="font-size: 0.7rem; color: #64748b; margin-top: 3px; font-weight: 500;">Cell: 0 | RF: 0</div>
+                </div>
 
-            <div class="card kpi-card border-purple" onclick="downloadKPIData('today-recon')" title="Click to download CSV">
-                <p class="kpi-title">Today Reconnected</p>
-                <h3 id="kpi-today-recon" class="kpi-value text-purple">0</h3>
-                <div class="kpi-sub-stats" id="sub-today-recon"></div>
+                <div style="width: 1px; background-color: #e2e8f0; height: 50px; margin-top: 5px;"></div>
+
+                <div onclick="downloadTodayData('recon')" style="cursor: pointer; padding: 5px; border-radius: 8px;" title="Click to download Excel data" onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor='transparent'">
+                    <h4 style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">RC DONE 📥</h4>
+                    <p id="kpi-today-recon" style="font-size: 1.8rem; font-weight: bold; color: #a855f7; margin-top: 5px;">0</p>
+                    <div id="sub-today-recon" style="font-size: 0.7rem; color: #64748b; margin-top: 3px; font-weight: 500;">Cell: 0 | RF: 0</div>
+                </div>
             </div>
+        </div>
         </section>
 
         <section class="box" id="export-trend">
@@ -213,6 +230,7 @@
     <script src="js/main.js"></script>
 </body>
 </html>
+
 
 
 
