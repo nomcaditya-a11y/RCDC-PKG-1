@@ -784,108 +784,69 @@ async function exportFullDashboardPDF() {
 }
 
 // 2. Individual Box PDF Tables & CSV
-function exportBoxData(type, format) {
-    // If CSV, download the raw meter-by-meter data exactly like before
-    if (format === 'csv') {
-        let rawExportData = filteredData;
-        if(type === 'comm' || type === 'aging') {
-            rawExportData = filteredData.filter(r => r._isBacklog && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
-        }
-        triggerCSVDownload(rawExportData, `${type}_Raw_Data`);
-        return;
+// --- EXPORT BOX DATA (RAW EXCEL DATA TO STYLED PDF/CSV) ---
+async function exportBoxData(type, format) {
+    // 1. Get the correct raw data based on what chart/table they clicked
+    let exportData = filteredData;
+    
+    // If they click Comm Status or Aging, they only want the currently disconnected meters
+    if(type === 'comm' || type === 'aging') {
+        exportData = filteredData.filter(r => r._isBacklog && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
     }
 
-    // If PDF, generate a clean, selectable TEXT TABLE of the aggregated data
-    if (format === 'pdf') {
+    if(!exportData || exportData.length === 0) return alert("No data to export!");
+
+    // 2. Export as CSV (Direct Excel File)
+    if (format === 'csv') {
+        triggerCSVDownload(exportData, `${type}_Raw_Data`);
+    } 
+    // 3. Export as PDF (Styled like an Excel Grid)
+    else if (format === 'pdf') {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        let head = [];
-        let body = [];
-        let title = "";
+        // Use Landscape orientation to fit all the Google Sheet columns
+        const doc = new jsPDF({ orientation: 'landscape' });
 
-        const groupByCol = getGroupingColumn();
+        // Extract column headers directly from your raw data (ignoring hidden code flags)
+        const headers = Object.keys(exportData[0]).filter(k => !k.startsWith('_'));
 
-        if (type === 'region') {
-            title = `Total Disconnections Analysis - ${groupByCol}`;
-            head = [[groupByCol, 'Total Disconnections']];
-            const counts = filteredData.filter(r => r._isDValid).reduce((acc, row) => {
-                const key = safeGet(row, groupByCol) || 'Unknown';
-                acc[key] = (acc[key] || 0) + 1;
-                return acc;
-            }, {});
-            for(let [k,v] of Object.entries(counts)) body.push([k, v]);
-        } 
-        else if (type === 'comm') {
-            title = `Still Disconnected - Comm Status`;
-            head = [['Comm Status', 'Total Meters']];
-            const discData = filteredData.filter(r => r._isBacklog && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
-            const counts = discData.reduce((acc, row) => {
-                const s = safeGet(row, 'Comm Status') || 'Unknown';
-                acc[s] = (acc[s] || 0) + 1;
-                return acc;
-            }, {});
-            for(let [k,v] of Object.entries(counts)) body.push([k, v]);
-        }
-        else if (type === 'progress') {
-            title = `DCRC Progress Analysis - ${groupByCol}`;
-            head = [[groupByCol, 'Reconnected', 'Disconnected', 'Pending', 'Total']];
-            
-            // Re-aggregate data exactly as shown on the web table
-            const tableData = {};
-            filteredData.forEach(row => {
-                const key = safeGet(row, groupByCol) || 'Unknown';
-                if (!tableData[key]) tableData[key] = { r: 0, d: 0, p: 0, t: 0 };
-                
-                let s = (safeGet(row, 'Status') || "").toLowerCase();
-                if (row._isRValid && s.includes('recon')) tableData[key].r++;
-                if (row._isBacklog) {
-                    if (s.includes('disc')) tableData[key].d++;
-                    else if (s.includes('pend')) tableData[key].p++;
-                }
-                tableData[key].t = tableData[key].r + tableData[key].d + tableData[key].p;
+        // Extract every single row of data
+        const rows = exportData.map(row => {
+            return headers.map(k => {
+                let val = row[k];
+                return (val !== null && val !== undefined) ? String(val) : "";
             });
-            for(let [k,v] of Object.entries(tableData)) {
-                body.push([k, v.r, v.d, v.p, v.t]);
-            }
-        }
-        else if (type === 'aging') {
-            title = `Aging Analysis - ${groupByCol}`;
-            const discData = filteredData.filter(r => r._isBacklog && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
-            const cols = [...new Set(discData.map(r => safeGet(r, groupByCol)).filter(Boolean))].sort();
-            
-            // Create dynamic headers based on regions
-            head = [['Aging Bucket', ...cols, 'Total']];
-            const buckets = ["Above 3 Months", "Above 2 Months", "Above 1 Month", "Above 15 Days", "Below 15 Days"];
-            
-            const agingData = {}; 
-            buckets.forEach(b => { agingData[b] = { T: 0 }; cols.forEach(c => agingData[b][c] = 0); });
-            
-            discData.forEach(row => {
-                const b = getAgingBucket(parseDateString(safeGet(row, 'disc. date')));
-                const c = safeGet(row, groupByCol);
-                if (agingData[b] && c && agingData[b][c] !== undefined) { agingData[b][c]++; agingData[b].T++; }
-            });
-
-            buckets.forEach(b => {
-                let row = [b];
-                cols.forEach(c => row.push(agingData[b][c]));
-                row.push(agingData[b].T);
-                body.push(row);
-            });
-        }
-
-        // Draw the PDF with real text data (AutoTable)
-        doc.text(title, 14, 15);
-        doc.autoTable({
-            head: head,
-            body: body,
-            startY: 20,
-            theme: 'grid',
-            styles: { fontSize: 9, font: 'helvetica' },
-            headStyles: { fillColor: [2, 132, 199] } // Genus Brand Blue
         });
-        
-        doc.save(`RCDC_${type}_Report_${new Date().toISOString().slice(0,10)}.pdf`);
+
+        // Add a clean title to the top of the PDF page
+        doc.setFontSize(14);
+        doc.text(`Genus Power RCDC Raw Data - ${type.toUpperCase()}`, 14, 15);
+
+        // Generate the beautiful, Excel-style PDF Table
+        doc.autoTable({
+            head: [headers],
+            body: rows,
+            startY: 22,
+            theme: 'grid', // Creates Excel-like borders
+            styles: { 
+                fontSize: 7, // Small font so all columns fit
+                cellPadding: 2,
+                font: 'helvetica',
+                overflow: 'linebreak'
+            },
+            headStyles: { 
+                fillColor: [2, 132, 199], // Genus Brand Blue Headers
+                textColor: 255, 
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            alternateRowStyles: { 
+                fillColor: [241, 245, 249] // Subtle grey alternating rows for easy reading
+            },
+            margin: { top: 20, left: 10, right: 10 }
+        });
+
+        // Save the file
+        doc.save(`RCDC_${type}_RawData_${new Date().toISOString().slice(0,10)}.pdf`);
     }
 }
 
@@ -947,6 +908,7 @@ function toggleTheme() {
         if(themeBtn) themeBtn.innerText = '☀️'; 
     }
 }
+
 
 
 
