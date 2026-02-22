@@ -13,17 +13,20 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <header class="top-nav">
-      <div class="logo-area">
+        <div class="logo-area">
             <img src="js/logo.webp" alt="Logo" class="dashboard-logo">
             <h1>Reconnection Disconnection for CSPDCL <span>(PKG-1 & PKG-3)</span></h1>
+        </div>
+        
+        <div class="header-controls">
             <div class="pkg-switcher">
                 <button id="btn-pkg1" class="pkg-btn active" onclick="switchPackage('pkg1')">PKG-1</button>
                 <button id="btn-pkg3" class="pkg-btn" onclick="switchPackage('pkg3')">PKG-3</button>
             </div>
             <button onclick="refreshData()" class="btn-secondary refresh-btn" title="Refresh Data">🔄 Refresh</button>
-            
             <button id="theme-btn" onclick="toggleTheme()" class="btn-secondary refresh-btn" title="Toggle Dark Mode">🌙</button>
         </div>
+        
         <div id="connection-status" class="status-badge">🟡 Connecting...</div>
     </header>
 
@@ -201,3 +204,4 @@
     <script src="js/main.js"></script>
 </body>
 </html>
+
