@@ -3,146 +3,165 @@
 // Register DataLabels plugin globally
 Chart.register(ChartDataLabels);
 
-// Global State
+// --- GLOBAL STATE ---
 let rawData = [];
 let filteredData = [];
 let chartInstances = {}; 
 let mapInstance = null;
 let markerGroup = null;
+let neighborGroup = null;
 
 let currentMapZone = "ALL";
 let currentMapAging = "Above 3 Months";
+let currentMapComm = "NonComm"; 
 
+// --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async () => {
-    const statusEl = document.getElementById('connection-status');
-    const data = await fetchMeterData();
+    // Check Dark Mode
+    if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        const themeBtn = document.getElementById('theme-btn');
+        if(themeBtn) themeBtn.innerText = '☀️';
+    }
 
+    const data = await fetchMeterData();
     if (data && data.length > 0) {
         rawData = data;
         filteredData = [...rawData]; 
+        document.getElementById('connection-status').innerHTML = `🟢 Live: ${rawData.length} records`;
         
-        statusEl.innerHTML = `🟢 Live: ${rawData.length} records`;
-        statusEl.style.color = "#4ade80"; 
-        
-        // Setup and Render
         populateGlobalFiltersInitial();
-        renderDashboard();
+        
+        // FIX: Must call applyGlobalFilters on load so the Date Flags are generated!
+        applyGlobalFilters(); 
 
-        // 1. Event Listeners for Hierarchy Sync (Cascading Dropdowns)
         document.getElementById('filter-region').addEventListener('change', syncDependentFilters);
         document.getElementById('filter-circle').addEventListener('change', syncDependentFilters);
         document.getElementById('filter-division').addEventListener('change', syncDependentFilters);
 
-        // 2. Global Filter Controls
         document.getElementById('apply-filters').addEventListener('click', applyGlobalFilters);
         document.getElementById('reset-filters').addEventListener('click', resetGlobalFilters);
         
-        // 3. Map Filter Controls
-        document.getElementById('map-zone-filter').addEventListener('change', (e) => {
-            currentMapZone = e.target.value;
-            updateMapFilters(); 
-            updateMapMarkers();
-        });
-        document.getElementById('map-aging-filter').addEventListener('change', (e) => {
-            currentMapAging = e.target.value;
-            updateMapFilters(); 
-            updateMapMarkers();
-        });
-
+        document.getElementById('map-zone-filter').addEventListener('change', e => { currentMapZone = e.target.value; updateMapFilters(); updateMapMarkers(); });
+        document.getElementById('map-aging-filter').addEventListener('change', e => { currentMapAging = e.target.value; updateMapFilters(); updateMapMarkers(); });
+        document.getElementById('map-comm-filter').addEventListener('change', e => { currentMapComm = e.target.value; updateMapFilters(); updateMapMarkers(); });
     } else {
-        statusEl.innerHTML = `🔴 Error connecting to database`;
-        statusEl.style.color = "#f87171";
+        document.getElementById('connection-status').innerHTML = `🔴 Error connecting to database`;
+        document.getElementById('connection-status').style.color = "#ef4444";
     }
 });
 
 // --- HELPER FUNCTIONS ---
 function safeGet(row, colName) {
-    const key = Object.keys(row).find(k => k.trim() === colName);
+    const key = Object.keys(row).find(k => k.trim().toLowerCase() === colName.toLowerCase());
     return key ? row[key] : null;
 }
 
-function calcPct(part, total) {
-    if (total === 0) return "0%";
-    return ((part / total) * 100).toFixed(1) + "%";
-}
-
 const percentFormatter = {
-    color: '#fff',
-    font: { weight: 'bold' },
+    color: '#fff', font: { weight: 'bold' },
     formatter: (value, ctx) => {
         let sum = 0;
-        let dataArr = ctx.chart.data.datasets[0].data;
-        dataArr.map(data => { sum += data; });
+        ctx.chart.data.datasets[0].data.forEach(d => { sum += d; });
         if (sum === 0) return value;
-        let percentage = (value * 100 / sum).toFixed(1) + "%";
-        return `${value}\n(${percentage})`;
-    },
-    textAlign: 'center'
+        return `${value}\n(${((value * 100) / sum).toFixed(1)}%)`;
+    }, textAlign: 'center'
 };
 
-// --- GLOBAL CASCADING FILTER LOGIC ---
+function getGroupingColumn() {
+    if (document.getElementById('filter-zone').value !== "ALL") return 'Zone/DC Name';
+    if (document.getElementById('filter-division').value !== "ALL") return 'Zone/DC Name';
+    if (document.getElementById('filter-circle').value !== "ALL") return 'Division Name';
+    if (document.getElementById('filter-region').value !== "ALL") return 'Circle Name';
+    return 'Region Name';
+}
+
+function getChildColumn(parentCol) {
+    if (parentCol === 'Region Name') return 'Circle Name';
+    if (parentCol === 'Circle Name') return 'Division Name';
+    if (parentCol === 'Division Name') return 'Zone/DC Name';
+    return null; 
+}
+
+// FIX: New bulletproof accordion logic with sleek SVG icons
+window.toggleParentRow = function(rowElement, childClassName) {
+    const children = document.querySelectorAll('.' + childClassName);
+    const iconElement = rowElement.querySelector('.toggle-icon');
+    if (!children || children.length === 0) return;
+
+    let isCurrentlyHidden = children[0].style.display === 'none';
+    
+    children.forEach(child => {
+        child.style.display = isCurrentlyHidden ? 'table-row' : 'none';
+    });
+    
+    if (iconElement) {
+        if (isCurrentlyHidden) {
+            // Down Arrow (Open)
+            iconElement.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`;
+            iconElement.style.color = '#0284c7';
+        } else {
+            // Right Arrow (Closed)
+            iconElement.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
+            iconElement.style.color = '';
+        }
+    }
+};
+
 function repopulateDropdown(id, validData, columnName, currentValue) {
     const select = document.getElementById(id);
     const uniqueVals = [...new Set(validData.map(r => safeGet(r, columnName)).filter(Boolean))].sort();
-    
     select.innerHTML = '<option value="ALL">All</option>';
-    let valueStillValid = false;
-
     uniqueVals.forEach(val => {
-        const option = document.createElement('option');
-        option.value = val;
-        option.textContent = val;
-        if (val === currentValue) {
-            option.selected = true;
-            valueStillValid = true;
-        }
-        select.appendChild(option);
+        const opt = document.createElement('option');
+        opt.value = val; opt.textContent = val;
+        if (val === currentValue) opt.selected = true;
+        select.appendChild(opt);
     });
+}
 
-    if (!valueStillValid && currentValue !== "ALL") {
-        select.value = "ALL";
-    }
+function syncDependentFilters() {
+    const r = document.getElementById('filter-region').value;
+    const c = document.getElementById('filter-circle').value;
+    const d = document.getElementById('filter-division').value;
+    
+    let cData = rawData; if (r !== "ALL") cData = cData.filter(x => safeGet(x, 'Region Name') === r);
+    let dData = cData; if (c !== "ALL") dData = dData.filter(x => safeGet(x, 'Circle Name') === c);
+    let zData = dData; if (d !== "ALL") zData = zData.filter(x => safeGet(x, 'Division Name') === d);
+    
+    repopulateDropdown('filter-circle', cData, 'Circle Name', c);
+    repopulateDropdown('filter-division', dData, 'Division Name', d);
+    repopulateDropdown('filter-zone', zData, 'Zone/DC Name', document.getElementById('filter-zone').value);
 }
 
 function populateGlobalFiltersInitial() {
     repopulateDropdown('filter-region', rawData, 'Region Name', 'ALL');
-    repopulateDropdown('filter-circle', rawData, 'Circle Name', 'ALL');
-    repopulateDropdown('filter-division', rawData, 'Division Name', 'ALL');
-    repopulateDropdown('filter-zone', rawData, 'Zone/DC Name', 'ALL');
+    syncDependentFilters();
 }
 
-function syncDependentFilters() {
-    const selRegion = document.getElementById('filter-region').value;
-    const selCircle = document.getElementById('filter-circle').value;
-    const selDiv = document.getElementById('filter-division').value;
-    const selZone = document.getElementById('filter-zone').value;
-
-    let circleData = rawData;
-    if (selRegion !== "ALL") circleData = circleData.filter(r => safeGet(r, 'Region Name') === selRegion);
-    
-    let divData = circleData;
-    if (selCircle !== "ALL") divData = divData.filter(r => safeGet(r, 'Circle Name') === selCircle);
-
-    let zoneData = divData;
-    if (selDiv !== "ALL") zoneData = zoneData.filter(r => safeGet(r, 'Division Name') === selDiv);
-
-    repopulateDropdown('filter-circle', circleData, 'Circle Name', selCircle);
-    repopulateDropdown('filter-division', divData, 'Division Name', selDiv);
-    repopulateDropdown('filter-zone', zoneData, 'Zone/DC Name', selZone);
+function parseDateString(dateStr) {
+    if (!dateStr) return null;
+    let d = new Date(dateStr.trim());
+    if (isNaN(d.getTime())) {
+        const p = dateStr.includes('/') ? dateStr.split('/') : dateStr.split('-');
+        if (p.length >= 3) d = new Date(`${p[2].substring(0,4)}-${p[1]}-${p[0]}`);
+    }
+    return isNaN(d.getTime()) ? null : d;
 }
 
+function isToday(dateObj) {
+    if (!dateObj) return false;
+    const today = new Date();
+    return dateObj.getDate() === today.getDate() && dateObj.getMonth() === today.getMonth() && dateObj.getFullYear() === today.getFullYear();
+}
+
+// --- DUAL-DATE SMART FILTER LOGIC ---
 function applyGlobalFilters() {
     const region = document.getElementById('filter-region').value;
     const circle = document.getElementById('filter-circle').value;
     const division = document.getElementById('filter-division').value;
     const zone = document.getElementById('filter-zone').value;
-    const startDate = document.getElementById('filter-start').value;
-    const endDate = document.getElementById('filter-end').value;
-
-    let start = startDate ? new Date(startDate) : null;
-    let end = endDate ? new Date(endDate) : null;
-    if (start) start.setHours(0, 0, 0, 0);
-    if (end) end.setHours(23, 59, 59, 999);
+    const start = document.getElementById('filter-start').value ? new Date(document.getElementById('filter-start').value).setHours(0,0,0,0) : null;
+    const end = document.getElementById('filter-end').value ? new Date(document.getElementById('filter-end').value).setHours(23,59,59,999) : null;
 
     filteredData = rawData.filter(row => {
         if (region !== "ALL" && safeGet(row, 'Region Name') !== region) return false;
@@ -150,35 +169,30 @@ function applyGlobalFilters() {
         if (division !== "ALL" && safeGet(row, 'Division Name') !== division) return false;
         if (zone !== "ALL" && safeGet(row, 'Zone/DC Name') !== zone) return false;
 
+        // Date Logic Flags
+        const dDate = parseDateString(safeGet(row, 'disc. date'));
+        const rDate = parseDateString(safeGet(row, 'reconnection date'));
+        
+        row._isDValid = true;
+        row._isRValid = true;
+
         if (start || end) {
-            let rowDate = parseDateString(safeGet(row, 'disc. date'));
-            if (!rowDate) return false; 
-            rowDate.setHours(0, 0, 0, 0); 
-            if (start && rowDate < start) return false;
-            if (end && rowDate > end) return false;
+            row._isDValid = dDate && (!start || dDate >= start) && (!end || dDate <= end);
+            row._isRValid = rDate && (!start || rDate >= start) && (!end || rDate <= end);
+            if (!row._isDValid && !row._isRValid) return false;
         }
         return true;
     });
 
-    currentMapZone = "ALL";
-    currentMapAging = "ALL";
+    currentMapZone = "ALL"; currentMapAging = "ALL"; currentMapComm = "NonComm"; 
     renderDashboard();
 }
 
 function resetGlobalFilters() {
-    document.getElementById('filter-region').value = "ALL";
-    document.getElementById('filter-circle').value = "ALL";
-    document.getElementById('filter-division').value = "ALL";
-    document.getElementById('filter-zone').value = "ALL";
-    document.getElementById('filter-start').value = "";
-    document.getElementById('filter-end').value = "";
-    
+    document.querySelectorAll('.filter-grid select').forEach(s => s.value = "ALL");
+    document.querySelectorAll('input[type="date"]').forEach(i => i.value = "");
     populateGlobalFiltersInitial();
-
-    currentMapZone = "ALL";
-    currentMapAging = "ALL";
-    filteredData = [...rawData];
-    renderDashboard();
+    applyGlobalFilters();
 }
 
 function renderDashboard() {
@@ -188,586 +202,470 @@ function renderDashboard() {
     drawTrendChart(filteredData);
     buildProgressTable(filteredData);
     buildAgingTable(filteredData); 
-    
     updateMapFilters();
     buildMap(filteredData);
 }
 
-function destroyChart(chartId) {
-    if (chartInstances[chartId]) chartInstances[chartId].destroy();
+function destroyChart(id) { if (chartInstances[id]) chartInstances[id].destroy(); }
+
+function getMediumCounts(data) {
+    let rf = 0, cell = 0;
+    data.forEach(r => {
+        const m = (safeGet(r, 'Comm Medium') || "").toLowerCase();
+        if(m.includes('rf')) rf++; else if(m.includes('cell')) cell++;
+    });
+    return {rf, cell};
 }
 
-// --- KPI & CHARTS ---
+// --- KPIs WITH RF/CELL FOR ALL ---
 function updateKPIs(data) {
-    const total = data.length;
-    let reconnected = 0, disconnected = 0, pending = 0, cellular = 0, rf = 0;
+    let totalDisc = [], recon = [], disc = [], pend = [];
+    let todayDisc = [], todayRecon = []; 
 
     data.forEach(r => {
         const status = (safeGet(r, 'Status') || "").toLowerCase();
-        if (status.includes('reconnected')) reconnected++;
-        else if (status.includes('disconnected')) disconnected++;
-        else if (status.includes('pending')) pending++;
-
-        const medium = (safeGet(r, 'Comm Medium') || "").toLowerCase();
-        if (medium.includes('cellular')) cellular++;
-        else if (medium.includes('rf')) rf++;
-    });
-
-    document.getElementById('kpi-total').innerText = total.toLocaleString();
-    document.getElementById('kpi-reconnected').innerText = reconnected.toLocaleString();
-    document.getElementById('kpi-reconnected-pct').innerText = calcPct(reconnected, total);
-    document.getElementById('kpi-disconnected').innerText = disconnected.toLocaleString();
-    document.getElementById('kpi-disconnected-pct').innerText = calcPct(disconnected, total);
-    document.getElementById('kpi-pending').innerText = pending.toLocaleString();
-    document.getElementById('kpi-pending-pct').innerText = calcPct(pending, total);
-    document.getElementById('kpi-cellular').innerText = cellular.toLocaleString();
-    document.getElementById('kpi-cellular-pct').innerText = calcPct(cellular, total);
-    document.getElementById('kpi-rf').innerText = rf.toLocaleString();
-    document.getElementById('kpi-rf-pct').innerText = calcPct(rf, total);
-}
-
-function drawRegionChart(data) {
-
-    
-    destroyChart('regionChart');
-    
-    
-    // 1. Get the dynamic column based on current filters
-    const groupByCol = getGroupingColumn();
-    let displayTitle = groupByCol.replace(' Name', '').replace('/DC', ''); // Cleans up title
-
-    if(document.getElementById('dynamic-chart-title')) {
-        document.getElementById('dynamic-chart-title').innerText = `${displayTitle} Wise Disconnection`;
-    }
-    
-    // 2. Group the total data by the dynamic column
-    const dynamicCounts = data.reduce((acc, row) => {
-        const key = safeGet(row, groupByCol) || 'Unknown';
-        acc[key] = (acc[key] || 0) + 1;
-        return acc;
-    }, {});
-    
-
-    const ctx = document.getElementById('regionChart').getContext('2d');
-    chartInstances['regionChart'] = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(dynamicCounts),
-            datasets: [{
-                data: Object.values(dynamicCounts),
-                backgroundColor: ['#0284c7', '#f59e0b', '#16a34a', '#dc2626', '#8b5cf6', '#34d399', '#f97316', '#1e40af'],
-                borderWidth: 0, 
-                hoverOffset: 4
-            }]
-        },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            plugins: { 
-                legend: { position: 'right' }, 
-                datalabels: percentFormatter,
-                title: {
-                    display: true,
-                    text: `Total Disconnections by ${displayTitle}`, // Dynamic Title
-                    color: '#475569',
-                    font: { size: 14 }
-                }
-            } 
+        
+        if (r._isDValid) {
+            totalDisc.push(r);
+            if (status.includes('disconnected')) disc.push(r);
+            else if (status.includes('pending')) pend.push(r);
         }
-    });
-}
-function drawCommStatusChart(data) {
-    destroyChart('commStatusChart');
-    const disconnectedData = data.filter(r => safeGet(r, 'Status') && safeGet(r, 'Status').toLowerCase().includes('disconnected'));
-    const commCounts = disconnectedData.reduce((acc, row) => {
-        const status = safeGet(row, 'Comm Status') || 'Unknown';
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-    }, {});
+        if (r._isRValid && status.includes('reconnected')) {
+            recon.push(r);
+        }
 
-    const ctx = document.getElementById('commStatusChart').getContext('2d');
-    chartInstances['commStatusChart'] = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: Object.keys(commCounts),
-            datasets: [{
-                data: Object.values(commCounts),
-                backgroundColor: ['#3b82f6', '#1e40af', '#f97316', '#34d399'],
-                borderWidth: 0, hoverOffset: 4
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' }, datalabels: percentFormatter } }
+        const dDate = parseDateString(safeGet(r, 'disc. date'));
+        const rDate = parseDateString(safeGet(r, 'reconnection date'));
+
+        if(isToday(dDate)) todayDisc.push(r);
+        if(isToday(rDate) && status.includes('reconnected')) todayRecon.push(r);
     });
+
+    document.getElementById('kpi-total').innerText = totalDisc.length;
+    let tM = getMediumCounts(totalDisc);
+    if(document.getElementById('sub-total')) document.getElementById('sub-total').innerHTML = `Cell: ${tM.cell} | RF: ${tM.rf}`;
+
+    document.getElementById('kpi-reconnected').innerText = recon.length;
+    let rM = getMediumCounts(recon);
+    if(document.getElementById('sub-recon')) document.getElementById('sub-recon').innerHTML = `Cell: ${rM.cell} | RF: ${rM.rf}`;
+
+    document.getElementById('kpi-disconnected').innerText = disc.length;
+    let dM = getMediumCounts(disc);
+    if(document.getElementById('sub-disc')) document.getElementById('sub-disc').innerHTML = `Cell: ${dM.cell} | RF: ${dM.rf}`;
+
+    document.getElementById('kpi-pending').innerText = pend.length;
+    let pM = getMediumCounts(pend);
+    if(document.getElementById('sub-pend')) document.getElementById('sub-pend').innerHTML = `Cell: ${pM.cell} | RF: ${pM.rf}`;
+
+    document.getElementById('kpi-today-disc').innerText = todayDisc.length;
+    let tdM = getMediumCounts(todayDisc);
+    if(document.getElementById('sub-today-disc')) document.getElementById('sub-today-disc').innerHTML = `Cell: ${tdM.cell} | RF: ${tdM.rf}`;
+
+    document.getElementById('kpi-today-recon').innerText = todayRecon.length;
+    let trM = getMediumCounts(todayRecon);
+    if(document.getElementById('sub-today-recon')) document.getElementById('sub-today-recon').innerHTML = `Cell: ${trM.cell} | RF: ${trM.rf}`;
 }
 
+// --- CHARTS ---
 function drawTrendChart(data) {
     destroyChart('trendChart');
     const monthData = {};
+    
     data.forEach(row => {
-        let dateObj = parseDateString(safeGet(row, 'disc. date'));
-        if (!dateObj) return; 
-        
-        const monthKey = dateObj.toLocaleString('default', { month: 'short', year: 'numeric' });
-        if (!monthData[monthKey]) monthData[monthKey] = { reconnected: 0, disconnected: 0 };
-        
-        if (safeGet(row, 'Status') && safeGet(row, 'Status').toLowerCase().includes('reconnected')) monthData[monthKey].reconnected++;
-        monthData[monthKey].disconnected++;
+        const status = (safeGet(row, 'Status') || "").toLowerCase();
+
+        if (row._isDValid) {
+            let discDate = parseDateString(safeGet(row, 'disc. date'));
+            if (discDate) {
+                const discMonth = discDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+                if (!monthData[discMonth]) monthData[discMonth] = { reconnected: 0, disconnected: 0 };
+                monthData[discMonth].disconnected++;
+            }
+        }
+
+        if (row._isRValid && status.includes('reconnected')) {
+            let recDate = parseDateString(safeGet(row, 'reconnection date'));
+            if (recDate) {
+                const recMonth = recDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+                if (!monthData[recMonth]) monthData[recMonth] = { reconnected: 0, disconnected: 0 };
+                monthData[recMonth].reconnected++;
+            }
+        }
     });
 
     const labels = Object.keys(monthData).sort((a, b) => new Date(a) - new Date(b));
-    const reconnectedLine = labels.map(l => monthData[l].reconnected);
-    const disconnectedLine = labels.map(l => monthData[l].disconnected);
+    const recLine = labels.map(l => monthData[l].reconnected);
+    const discLine = labels.map(l => monthData[l].disconnected);
 
-    const ctx = document.getElementById('trendChart').getContext('2d');
-    chartInstances['trendChart'] = new Chart(ctx, {
+    chartInstances['trendChart'] = new Chart(document.getElementById('trendChart').getContext('2d'), {
         type: 'line',
         data: {
             labels: labels,
             datasets: [
-                { label: 'Total Disconnection', data: disconnectedLine, borderColor: '#1e40af', backgroundColor: '#1e40af', tension: 0.3, borderWidth: 3 },
-                { label: 'Reconnected', data: reconnectedLine, borderColor: '#0284c7', backgroundColor: '#0284c7', tension: 0.3, borderWidth: 3 }
+                { label: 'Disconnections', data: discLine, borderColor: '#eab308', backgroundColor: '#eab308', tension: 0.3, borderWidth: 3 }, 
+                { label: 'Reconnections', data: recLine, borderColor: '#0284c7', backgroundColor: '#0284c7', tension: 0.3, borderWidth: 3 }
             ]
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { datalabels: { align: 'top', font: { weight: 'bold' } } } }
     });
 }
 
-// --- TABLES ---
-function buildProgressTable(data) {
-    // 1. Get dynamic grouping column
+function drawRegionChart(data) {
+    destroyChart('regionChart');
     const groupByCol = getGroupingColumn();
-    let displayHeader = groupByCol.replace(' Name', '').replace('/DC', '');
-    
-    if(document.getElementById('dynamic-progress-title')) {
-        document.getElementById('dynamic-progress-title').innerText = `DCRC Progress by ${displayHeader}`;
-    }
-    const tableData = {};
-    let grandReconnected = 0, grandDisconnected = 0, grandPending = 0, grandTotal = 0;
+    let displayTitle = groupByCol.replace(' Name', '').replace('/DC', ''); 
+    if(document.getElementById('dynamic-chart-title')) document.getElementById('dynamic-chart-title').innerText = `Total Disconnections Analysis - ${displayTitle}`;
 
-    // 2. Group data dynamically
+    const counts = data.filter(r => r._isDValid).reduce((acc, row) => {
+        const key = safeGet(row, groupByCol) || 'Unknown';
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+    }, {});
+
+    chartInstances['regionChart'] = new Chart(document.getElementById('regionChart').getContext('2d'), {
+        type: 'doughnut',
+        data: { labels: Object.keys(counts), datasets: [{ data: Object.values(counts), backgroundColor: ['#0284c7', '#f59e0b', '#16a34a', '#dc2626', '#8b5cf6'], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' }, datalabels: percentFormatter } }
+    });
+}
+
+function drawCommStatusChart(data) {
+    destroyChart('commStatusChart');
+    const discData = data.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
+    const counts = discData.reduce((acc, row) => {
+        const s = safeGet(row, 'Comm Status') || 'Unknown';
+        acc[s] = (acc[s] || 0) + 1;
+        return acc;
+    }, {});
+
+    chartInstances['commStatusChart'] = new Chart(document.getElementById('commStatusChart').getContext('2d'), {
+        type: 'pie',
+        data: { labels: Object.keys(counts), datasets: [{ data: Object.values(counts), backgroundColor: ['#ef4444', '#10b981', '#3b82f6', '#f59e0b'], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' }, datalabels: percentFormatter } }
+    });
+}
+
+// --- ACCORDION PROGRESS TABLE (WITH SVG ICONS) ---
+function buildProgressTable(data) {
+    const groupByCol = getGroupingColumn();
+    const childCol = getChildColumn(groupByCol); 
+    
+    let displayHeader = groupByCol.replace(' Name', '').replace('/DC', '');
+    if(document.getElementById('dynamic-progress-title')) document.getElementById('dynamic-progress-title').innerText = `DCRC Progress Analysis - ${displayHeader}`;
+
+    const tableData = {};
+    let grandR = 0, grandD = 0, grandP = 0, grandT = 0;
+
     data.forEach(row => {
         const key = safeGet(row, groupByCol) || 'Unknown';
+        if (!tableData[key]) tableData[key] = { r: 0, d: 0, p: 0, t: 0, children: {} };
+        
+        const s = (safeGet(row, 'Status') || "").toLowerCase();
+        let isR = false, isD = false, isP = false;
+        
+        if (row._isRValid && s.includes('recon')) { tableData[key].r++; grandR++; isR = true; }
+        if (row._isDValid) {
+            if (s.includes('disc')) { tableData[key].d++; grandD++; isD = true; }
+            else if (s.includes('pend')) { tableData[key].p++; grandP++; isP = true; }
+        }
 
-        if (!tableData[key]) tableData[key] = { reconnected: 0, disconnected: 0, pending: 0, total: 0 };
-
-        tableData[key].total++;
-        grandTotal++;
-
-        const status = (safeGet(row, 'Status') || "").toLowerCase();
-        if (status.includes('reconnected')) { tableData[key].reconnected++; grandReconnected++; }
-        else if (status.includes('disconnected')) { tableData[key].disconnected++; grandDisconnected++; }
-        else if (status.includes('pending')) { tableData[key].pending++; grandPending++; }
+        if (childCol) {
+            const cKey = safeGet(row, childCol) || 'Unknown';
+            if (!tableData[key].children[cKey]) tableData[key].children[cKey] = { r: 0, d: 0, p: 0, t: 0 };
+            
+            if (isR) tableData[key].children[cKey].r++;
+            if (isD) tableData[key].children[cKey].d++;
+            if (isP) tableData[key].children[cKey].p++;
+            tableData[key].children[cKey].t = tableData[key].children[cKey].r + tableData[key].children[cKey].d + tableData[key].children[cKey].p;
+        }
+        
+        tableData[key].t = tableData[key].r + tableData[key].d + tableData[key].p;
     });
 
-    // 3. Dynamically update the Table Header
-    const thead = document.querySelector('#progress-table thead');
-    if (thead) {
-        thead.innerHTML = `<tr>
-            <th>${displayHeader}</th>
-            <th>Reconnected</th>
-            <th>Disconnected</th>
-            <th>Pending</th>
-            <th>Total</th>
+    document.querySelector('#progress-table thead').innerHTML = `<tr><th>${displayHeader}</th><th>Reconnected</th><th>Disconnected</th><th>Pending</th><th>Total</th></tr>`;
+    const tbody = document.querySelector('#progress-table tbody'); 
+    tbody.innerHTML = '';
+    
+    let rowIndex = 0;
+    for (const [k, v] of Object.entries(tableData)) {
+        rowIndex++;
+        const hasChildren = childCol && Object.keys(v.children).length > 0;
+        
+        // Clean SVG Right Arrow
+        const rightArrow = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
+        
+        const expandIcon = hasChildren 
+            ? `<span class="toggle-icon" style="margin-right:8px; display:inline-flex; align-items:center;">${rightArrow}</span>` 
+            : `<span style="display:inline-block; width:24px; margin-right:8px;"></span>`;
+        
+        tbody.innerHTML += `<tr class="parent-row" ${hasChildren ? `style="cursor:pointer;" onclick="toggleParentRow(this, 'child-row-${rowIndex}')"` : ''}>
+            <td><div style="display:flex; align-items:center;">${expandIcon}<strong>${k}</strong></div></td>
+            <td>${v.r}</td><td>${v.d}</td><td>${v.p}</td><td><strong>${v.t}</strong></td>
         </tr>`;
+
+        if (hasChildren) {
+            for (const [cKey, cVal] of Object.entries(v.children)) {
+                tbody.innerHTML += `<tr class="child-row child-row-${rowIndex}" style="display:none;">
+                    <td class="child-cell" style="padding-left: 2rem;">&#8627; ${cKey}</td>
+                    <td class="child-cell">${cVal.r}</td><td class="child-cell">${cVal.d}</td><td class="child-cell">${cVal.p}</td><td class="child-cell"><strong>${cVal.t}</strong></td>
+                </tr>`;
+            }
+        }
     }
 
-    // 4. Build Table Body
-    const tbody = document.querySelector('#progress-table tbody');
-    tbody.innerHTML = ''; 
-    for (const [name, stats] of Object.entries(tableData)) {
-        tbody.innerHTML += `<tr>
-            <td>${name}</td>
-            <td>${stats.reconnected} <span style="color:#64748b; font-size:0.75rem;">(${calcPct(stats.reconnected, stats.total)})</span></td>
-            <td>${stats.disconnected} <span style="color:#64748b; font-size:0.75rem;">(${calcPct(stats.disconnected, stats.total)})</span></td>
-            <td>${stats.pending} <span style="color:#64748b; font-size:0.75rem;">(${calcPct(stats.pending, stats.total)})</span></td>
-            <td><strong>${stats.total}</strong></td>
-        </tr>`;
-    }
-    
-    tbody.innerHTML += `<tr>
+    grandT = grandR + grandD + grandP;
+    tbody.innerHTML += `<tr style="background: rgba(0,0,0,0.05);">
         <td><strong>Grand Total</strong></td>
-        <td><strong>${grandReconnected} <span style="color:#64748b; font-size:0.75rem;">(${calcPct(grandReconnected, grandTotal)})</span></strong></td>
-        <td><strong>${grandDisconnected} <span style="color:#64748b; font-size:0.75rem;">(${calcPct(grandDisconnected, grandTotal)})</span></strong></td>
-        <td><strong>${grandPending} <span style="color:#64748b; font-size:0.75rem;">(${calcPct(grandPending, grandTotal)})</span></strong></td>
-        <td><strong>${grandTotal}</strong></td>
+        <td><strong>${grandR}</strong></td><td><strong>${grandD}</strong></td><td><strong>${grandP}</strong></td><td><strong>${grandT}</strong></td>
     </tr>`;
 }
 
-// --- AGING LOGIC ---
-function parseDateString(dateStr) {
-    if (!dateStr) return null;
-    let d = new Date(dateStr.trim());
-    if (isNaN(d.getTime())) {
-        const parts = dateStr.includes('/') ? dateStr.split('/') : dateStr.split('-');
-        if (parts.length >= 3) d = new Date(`${parts[2].substring(0,4)}-${parts[1]}-${parts[0]}`);
-    }
-    return isNaN(d.getTime()) ? null : d;
+function getAgingBucket(d) {
+    if (!d) return "Unknown";
+    const diff = Math.floor((new Date().getTime() - d.getTime()) / (1000 * 3600 * 24));
+    if (diff > 90) return "Above 3 Months"; if (diff > 60) return "Above 2 Months";
+    if (diff > 30) return "Above 1 Month"; if (diff > 15) return "Above 15 Days"; return "Below 15 Days"; 
 }
 
-function getAgingBucket(dateObj) {
-    if (!dateObj) return "Unknown";
-    const daysDiff = Math.floor((new Date().getTime() - dateObj.getTime()) / (1000 * 3600 * 24));
-    if (daysDiff > 90) return "Above 3 Months";
-    if (daysDiff > 60) return "Above 2 Months";
-    if (daysDiff > 30) return "Above 1 Month";
-    if (daysDiff > 15) return "Above 15 Days";
-    return "Below 15 Days"; 
-}
-
-// --- DYNAMIC AGING TABLE ---
 function buildAgingTable(data) {
-    // 1. Get dynamic grouping column
     const groupByCol = getGroupingColumn();
+    if(document.getElementById('dynamic-aging-title')) document.getElementById('dynamic-aging-title').innerText = `Aging Analysis - ${groupByCol.replace(' Name','').replace('/DC','')}`;
     
-    // --- NEW: Update the HTML title dynamically ---
-    let displayHeader = groupByCol.replace(' Name', '').replace('/DC', '');
-    const titleEl = document.getElementById('dynamic-aging-title');
-    if (titleEl) {
-        titleEl.innerText = `Aging by ${displayHeader}`;
-    }
-    // ----------------------------------------------
-    
-    // 2. Only look at disconnected meters for Aging
-    const disconnectedMeters = data.filter(row => safeGet(row, 'Status') && safeGet(row, 'Status').toLowerCase().includes('disconnected'));
-    
-    // 3. Find unique columns based on the current drill-down depth
-    const dynamicCols = [...new Set(disconnectedMeters.map(r => safeGet(r, groupByCol)).filter(Boolean))].sort();
+    const discData = data.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
+    const cols = [...new Set(discData.map(r => safeGet(r, groupByCol)).filter(Boolean))].sort();
     const buckets = ["Above 3 Months", "Above 2 Months", "Above 1 Month", "Above 15 Days", "Below 15 Days"];
-
-    const agingData = {};
-    buckets.forEach(b => { agingData[b] = { Total: 0 }; dynamicCols.forEach(c => agingData[b][c] = 0); });
-
-    disconnectedMeters.forEach(row => {
-        const bucket = getAgingBucket(parseDateString(safeGet(row, 'disc. date')));
-        const key = safeGet(row, groupByCol);
-        if (agingData[bucket] && key && agingData[bucket][key] !== undefined) {
-            agingData[bucket][key]++;
-            agingData[bucket].Total++;
-        }
+    
+    const agingData = {}; 
+    buckets.forEach(b => { agingData[b] = { T: 0 }; cols.forEach(c => agingData[b][c] = 0); });
+    
+    discData.forEach(row => {
+        const b = getAgingBucket(parseDateString(safeGet(row, 'disc. date')));
+        const c = safeGet(row, groupByCol);
+        if (agingData[b] && c && agingData[b][c] !== undefined) { agingData[b][c]++; agingData[b].T++; }
     });
 
-    // 4. Update the Table Headers Dynamically
-    const thead = document.querySelector('#aging-table thead');
-    thead.innerHTML = `<tr><th>Aging Bucket</th>${dynamicCols.map(c => `<th>${c}</th>`).join('')}<th>Total</th></tr>`;
-
-    // 5. Update the Table Body
-    const tbody = document.querySelector('#aging-table tbody');
-    tbody.innerHTML = ''; 
+    document.querySelector('#aging-table thead').innerHTML = `<tr><th>Aging Bucket</th>${cols.map(c => `<th>${c}</th>`).join('')}<th>Total</th></tr>`;
+    const tbody = document.querySelector('#aging-table tbody'); 
+    tbody.innerHTML = '';
+    
     const grandTotals = { Total: 0 };
-    dynamicCols.forEach(c => grandTotals[c] = 0);
+    cols.forEach(c => grandTotals[c] = 0);
 
-    buckets.forEach(bucket => {
-        let rowHtml = `<td>${bucket}</td>`;
-        dynamicCols.forEach(c => { 
-            rowHtml += `<td>${agingData[bucket][c]}</td>`; 
-            grandTotals[c] += agingData[bucket][c]; 
-        });
-        rowHtml += `<td><strong>${agingData[bucket].Total}</strong></td>`;
-        grandTotals.Total += agingData[bucket].Total;
-        tbody.innerHTML += `<tr>${rowHtml}</tr>`;
+    buckets.forEach(b => {
+        let html = `<td>${b}</td>`; 
+        cols.forEach(c => { html += `<td>${agingData[b][c]}</td>`; grandTotals[c] += agingData[b][c]; });
+        grandTotals.Total += agingData[b].T; 
+        tbody.innerHTML += `<tr>${html}<td><strong>${agingData[b].T}</strong></td></tr>`;
     });
 
     let totalHtml = `<td><strong>Grand Total</strong></td>`;
-    dynamicCols.forEach(c => totalHtml += `<td><strong>${grandTotals[c]}</strong></td>`);
+    cols.forEach(c => totalHtml += `<td><strong>${grandTotals[c]}</strong></td>`);
     totalHtml += `<td><strong>${grandTotals.Total}</strong></td>`;
-    tbody.innerHTML += `<tr>${totalHtml}</tr>`;
+    tbody.innerHTML += `<tr style="background: rgba(0,0,0,0.05);">${totalHtml}</tr>`;
 }
 
-// --- EXCEL-LIKE MAP FILTER LOGIC ---
+// --- MAP & NEIGHBORS ---
 function updateMapFilters() {
-    const mapBaseData = filteredData.filter(row => safeGet(row, 'Status') && safeGet(row, 'Status').toLowerCase().includes('disconnected'));
+    const mapData = filteredData.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
     
-    let dataForZoneOptions = mapBaseData;
-    if (currentMapAging !== "ALL") {
-        dataForZoneOptions = mapBaseData.filter(row => getAgingBucket(parseDateString(safeGet(row, 'disc. date'))) === currentMapAging);
-    }
-    const validZones = [...new Set(dataForZoneOptions.map(r => safeGet(r, 'Zone/DC Name')).filter(Boolean))].sort();
+    let cData = mapData;
+    if (currentMapComm === "NonComm") cData = cData.filter(r => (safeGet(r, 'Comm Status')||"").toLowerCase().includes('non'));
+    else if (currentMapComm === "Comm") cData = cData.filter(r => !(safeGet(r, 'Comm Status')||"").toLowerCase().includes('non'));
 
-    let dataForAgingOptions = mapBaseData;
-    if (currentMapZone !== "ALL") {
-        dataForAgingOptions = mapBaseData.filter(row => safeGet(row, 'Zone/DC Name') === currentMapZone);
-    }
-    const validAgings = [...new Set(dataForAgingOptions.map(r => getAgingBucket(parseDateString(safeGet(r, 'disc. date')))).filter(Boolean))].sort();
-
-    const zoneSelect = document.getElementById('map-zone-filter');
-    zoneSelect.innerHTML = `<option value="ALL">All Available Zones</option>`;
-    validZones.forEach(val => {
-        const option = document.createElement('option');
-        option.value = val;
-        option.textContent = val;
-        if (val === currentMapZone) option.selected = true; 
-        zoneSelect.appendChild(option);
-    });
-
-    const agingSelect = document.getElementById('map-aging-filter');
-    agingSelect.innerHTML = `<option value="ALL">All Available Aging</option>`;
-    const bucketOrder = ["Above 3 Months", "Above 2 Months", "Above 1 Month", "Above 15 Days", "Below 15 Days"];
-    bucketOrder.forEach(val => {
-        if (validAgings.includes(val)) {
-            const option = document.createElement('option');
-            option.value = val;
-            option.textContent = val;
-            if (val === currentMapAging) option.selected = true; 
-            agingSelect.appendChild(option);
+    let zData = currentMapAging !== "ALL" ? cData.filter(r => getAgingBucket(parseDateString(safeGet(r, 'disc. date'))) === currentMapAging) : cData;
+    let aData = currentMapZone !== "ALL" ? cData.filter(r => safeGet(r, 'Zone/DC Name') === currentMapZone) : cData;
+    
+    repopulateDropdown('map-zone-filter', zData, 'Zone/DC Name', currentMapZone);
+    
+    const validAgings = [...new Set(aData.map(r => getAgingBucket(parseDateString(safeGet(r, 'disc. date')))).filter(Boolean))];
+    const aSel = document.getElementById('map-aging-filter'); aSel.innerHTML = `<option value="ALL">All Available Aging</option>`;
+    ["Above 3 Months", "Above 2 Months", "Above 1 Month", "Above 15 Days", "Below 15 Days"].forEach(v => {
+        if(validAgings.includes(v)) {
+            const opt = document.createElement('option'); opt.value = v; opt.textContent = v;
+            if(v === currentMapAging) opt.selected = true; aSel.appendChild(opt);
         }
     });
 }
 
-// --- MAP LOGIC WITH TOGGLE FOR SATELLITE/NORMAL VIEWS ---
+function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; const p1 = lat1 * Math.PI/180; const p2 = lat2 * Math.PI/180;
+    const dp = (lat2-lat1) * Math.PI/180; const dl = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
 function buildMap(data) {
     if (!mapInstance) {
         mapInstance = L.map('map');
-        
-        // Define the High Quality Google Hybrid Satellite Layer
-        const satelliteLayer = L.tileLayer('http://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-            maxZoom: 20,
-            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-            attribution: '&copy; Google Maps'
-        });
-
-        // Define the standard OpenStreetMap Normal View Layer
-        const normalLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap'
-        });
-
-        // Add Satellite as the default view
-        satelliteLayer.addTo(mapInstance);
-
-        // Add the standard Leaflet Layer Control (Toggle Switch) to the top right of the map
-        const baseMaps = {
-            "Satellite View": satelliteLayer,
-            "Normal View": normalLayer
-        };
-        L.control.layers(baseMaps, null, { position: 'topright' }).addTo(mapInstance);
-        
+        const sat = L.tileLayer('http://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { subdomains:['mt0','mt1','mt2','mt3']}).addTo(mapInstance);
+        L.control.layers({ "Satellite": sat, "Normal": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png') }, null, { position:'topright' }).addTo(mapInstance);
         markerGroup = L.layerGroup().addTo(mapInstance);
+        
+        neighborGroup = L.layerGroup().addTo(mapInstance);
+        mapInstance.on('popupclose', function() { if (neighborGroup) neighborGroup.clearLayers(); });
     }
     updateMapMarkers();
 }
 
 function updateMapMarkers() {
-    if (!markerGroup || !mapInstance) return;
     markerGroup.clearLayers();
-    
-    const selectedZone = currentMapZone;
-    const selectedAging = currentMapAging;
-
-    const disconnectedMeters = filteredData.filter(row => safeGet(row, 'Status') && safeGet(row, 'Status').toLowerCase().includes('disconnected'));
+    if (neighborGroup) neighborGroup.clearLayers(); 
     const bounds = [];
+    
+    const redPinHtml = `<svg class="custom-pin" viewBox="0 0 24 24" width="30" height="30"><path fill="#dc2626" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`;
+    const greenPinHtml = `<svg class="custom-pin" viewBox="0 0 24 24" width="24" height="24"><path fill="#16a34a" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`;
+    const bluePinHtml = `<svg class="custom-pin" viewBox="0 0 24 24" width="24" height="24"><path fill="#0284c7" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`;
 
-    disconnectedMeters.forEach(row => {
-        const lat = parseFloat(safeGet(row, 'Latitute'));
-        const lng = parseFloat(safeGet(row, 'Longitude'));
-        const zone = safeGet(row, 'Zone/DC Name');
+    const redPin = L.divIcon({ html: redPinHtml, className: '', iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] });
+    const greenPin = L.divIcon({ html: greenPinHtml, className: '', iconSize: [24, 24], iconAnchor: [12, 24], popupAnchor: [0, -24] });
+    const bluePin = L.divIcon({ html: bluePinHtml, className: '', iconSize: [24, 24], iconAnchor: [12, 24], popupAnchor: [0, -24] });
+
+    filteredData.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected')).forEach(row => {
         const bucket = getAgingBucket(parseDateString(safeGet(row, 'disc. date')));
-        const meterNo = safeGet(row, 'meter_id') || 'Unknown';
+        const commStat = (safeGet(row, 'Comm Status') || "").toLowerCase();
         
-        if (!isNaN(lat) && !isNaN(lng)) {
-            const zoneMatch = (selectedZone === "ALL" || zone === selectedZone);
-            const agingMatch = (selectedAging === "ALL" || bucket === selectedAging);
+        let commMatch = false;
+        if (currentMapComm === "ALL") commMatch = true;
+        else if (currentMapComm === "NonComm" && commStat.includes('non')) commMatch = true;
+        else if (currentMapComm === "Comm" && !commStat.includes('non')) commMatch = true;
 
-            if (zoneMatch && agingMatch) {
+        if ((currentMapZone === "ALL" || safeGet(row, 'Zone/DC Name') === currentMapZone) && 
+            (currentMapAging === "ALL" || bucket === currentMapAging) && commMatch) {
+            
+            const lat = parseFloat(safeGet(row, 'Latitute')), lng = parseFloat(safeGet(row, 'Longitude'));
+            if (!isNaN(lat)) {
+                const marker = L.marker([lat, lng], { icon: redPin }).addTo(markerGroup);
                 
-                const markerHtml = `
-                    <div style="
-                        background-color: #dc2626; 
-                        color: #ffffff; 
-                        font-family: 'Inter', sans-serif;
-                        font-size: 11px; 
-                        font-weight: 700; 
-                        padding: 3px 6px; 
-                        border-radius: 4px; 
-                        border: 2px solid #ffffff; 
-                        box-shadow: 0 3px 6px rgba(0,0,0,0.4);
-                        white-space: nowrap;
-                        text-align: center;
-                        position: relative;
-                        top: -10px;
-                        left: -15px;
-                    ">
-                        ${meterNo}
-                    </div>
-                `;
-                
-                const icon = L.divIcon({ 
-                    html: markerHtml, 
-                    className: '', 
-                    iconSize: null 
-                });
+                marker.on('click', function() {
+                    neighborGroup.clearLayers(); 
+                    let neighbors = [];
+                    
+                    rawData.forEach(nRow => {
+                        if (nRow === row) return; 
+                        const nLat = parseFloat(safeGet(nRow, 'Latitute')); 
+                        const nLng = parseFloat(safeGet(nRow, 'Longitude'));
+                        if (isNaN(nLat)) return;
+                        
+                        const dist = getDistance(lat, lng, nLat, nLng);
+                        if (dist <= 100) { 
+                            const stat = (safeGet(nRow, 'Status')||"").toLowerCase();
+                            const comm = (safeGet(nRow, 'Comm Status')||"").toLowerCase();
+                            
+                            if (stat.includes('recon') || !comm.includes('non')) {
+                                const isRecon = stat.includes('recon');
+                                neighbors.push({ id: safeGet(nRow, 'meter_id'), dist: Math.round(dist), stat: isRecon ? 'Reconnected' : 'Communicating' });
+                                
+                                const nMarker = L.marker([nLat, nLng], { icon: isRecon ? bluePin : greenPin })
+                                    .bindPopup(`<b style="font-size:11px; color:#333;">Neighbor Meter: ${safeGet(nRow, 'meter_id')}</b><br><span style="font-size:10px; color:${isRecon ? '#0284c7' : '#16a34a'};">${isRecon ? 'Reconnected' : 'Communicating'}</span>`);
+                                neighborGroup.addLayer(nMarker);
+                            }
+                        }
+                    });
 
-                const marker = L.marker([lat, lng], { icon: icon })
-                    .bindPopup(`
-                        <div style="font-family:Inter,sans-serif;">
-                            <h4 style="margin:0 0 5px 0; color:#1f2937;">Meter No: <b style="color:#0284c7;">${meterNo}</b></h4>
-                            <p style="margin:2px 0; font-size:12px;"><b>Consumer No:</b> ${safeGet(row, 'consumer_no') || 'N/A'}</p>
-                            <p style="margin:2px 0; font-size:12px;"><b>Zone/DC:</b> ${zone || 'N/A'}</p>
-                            <p style="margin:2px 0; font-size:12px; color:#dc2626;"><b>Aging:</b> ${bucket}</p>
+                    let nList = neighbors.map(n => `<div class="neighbor-item">Meter: ${n.id} | <span class="${n.stat==='Reconnected'?'n-recon':'n-comm'}">${n.stat}</span> | ${n.dist}m away</div>`).join('');
+                    if(neighbors.length === 0) nList = "<div style='font-size:10px; color:#888;'>No active neighbors within 100m.</div>";
+
+                    marker.bindPopup(`
+                        <div style="font-family:Inter; min-width: 200px;">
+                            <h4 style="margin:0 0 5px 0;">Meter No: <b style="color:#dc2626;">${safeGet(row, 'meter_id')}</b></h4>
+                            <p style="margin:2px 0; font-size:11px;"><b>Consumer:</b> ${safeGet(row, 'consumer_no')}</p>
+                            <p style="margin:2px 0; font-size:11px;"><b>Aging:</b> ${bucket}</p>
+                            <p style="margin:2px 0; font-size:11px;"><b>Comm Status:</b> ${safeGet(row, 'Comm Status') || 'N/A'}</p>
+                            <hr style="margin:5px 0;">
+                            <h5 style="margin:0; font-size:11px;">Nearby Active Meters (Theft Check):</h5>
+                            <div class="neighbor-list">${nList}</div>
                         </div>
-                    `);
-                
-                markerGroup.addLayer(marker);
-                bounds.push([lat, lng]); 
+                    `).openPopup();
+                });
+                bounds.push([lat, lng]);
             }
         }
     });
+    if (bounds.length > 0) mapInstance.fitBounds(bounds, { padding: [40, 40] });
+}
 
-    if (bounds.length > 0) {
-        mapInstance.fitBounds(L.latLngBounds(bounds), { padding: [40, 40] });
-    } else {
-        mapInstance.setView([21.25, 81.62], 6);
+// --- EXPORT LOGIC ---
+function downloadKPIData(type) {
+    let data = [];
+    if(type === 'total') data = filteredData.filter(r => r._isDValid);
+    else if(type === 'reconnected') data = filteredData.filter(r => r._isRValid && (safeGet(r, 'Status')||"").toLowerCase().includes('reconnected'));
+    else if(type === 'disconnected') data = filteredData.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
+    else if(type === 'pending') data = filteredData.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('pending'));
+    else if(type === 'today-disc') data = filteredData.filter(r => isToday(parseDateString(safeGet(r, 'disc. date'))));
+    else if(type === 'today-recon') data = filteredData.filter(r => isToday(parseDateString(safeGet(r, 'reconnection date'))));
+    
+    if(data.length===0) return alert("No data to download.");
+    triggerCSVDownload(data, `${type}_Report`);
+}
+
+async function exportBoxData(type, format, elementId) {
+    let data = filteredData;
+    if(type === 'comm') data = filteredData.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
+
+    if (format === 'csv') triggerCSVDownload(data, `${type}_Box_Data`);
+    else if (format === 'pdf') {
+        const element = document.getElementById(elementId);
+        if (!element) return alert("Error finding element.");
+        
+        const canvas = await html2canvas(element, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jspdf.jsPDF({ orientation: 'landscape' });
+        
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`RCDC_${type}_Report.pdf`);
     }
 }
-// --- EXPORT KPI DATA TO CSV ---
-function downloadKPIData(kpiType) {
-    if (!filteredData || filteredData.length === 0) {
-        alert("No data available to download.");
-        return;
-    }
 
-    let exportData = [];
-    let fileName = "";
-
-    // Filter the data based on which card was clicked
-    switch(kpiType) {
-        case 'total':
-            exportData = filteredData;
-            fileName = "Total_Disconnections.csv";
-            break;
-        case 'reconnected':
-            exportData = filteredData.filter(r => safeGet(r, 'Status') && safeGet(r, 'Status').toLowerCase().includes('reconnected'));
-            fileName = "Reconnected_Meters.csv";
-            break;
-        case 'disconnected':
-            exportData = filteredData.filter(r => safeGet(r, 'Status') && safeGet(r, 'Status').toLowerCase().includes('disconnected'));
-            fileName = "Still_Disconnected_Meters.csv";
-            break;
-        case 'pending':
-            exportData = filteredData.filter(r => safeGet(r, 'Status') && safeGet(r, 'Status').toLowerCase().includes('pending'));
-            fileName = "Pending_Meters.csv";
-            break;
-        case 'cellular':
-            exportData = filteredData.filter(r => safeGet(r, 'Comm Medium') && safeGet(r, 'Comm Medium').toLowerCase().includes('cellular'));
-            fileName = "Cellular_Meters.csv";
-            break;
-        case 'rf':
-            exportData = filteredData.filter(r => safeGet(r, 'Comm Medium') && safeGet(r, 'Comm Medium').toLowerCase().includes('rf'));
-            fileName = "RF_Meters.csv";
-            break;
-    }
-
-    if (exportData.length === 0) {
-        alert(`No records found for ${kpiType} in the current filter.`);
-        return;
-    }
-
-    // Convert the array of objects back into CSV text using PapaParse
-    const csvContent = Papa.unparse(exportData);
-    
-    // Create a Blob containing the CSV data
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    
-    // Create a hidden link, click it to trigger download, and remove it
-    const link = document.createElement("a");
-    const dateStr = new Date().toISOString().slice(0,10); // Format: YYYY-MM-DD
-    
-    link.setAttribute("href", url);
-    link.setAttribute("download", `RCDC_${dateStr}_${fileName}`);
-    link.style.visibility = 'hidden';
-    
-    document.body.appendChild(link);
+function triggerCSVDownload(dataArray, filename) {
+    const blob = new Blob([Papa.unparse(dataArray)], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `RCDC_${filename}_${new Date().toISOString().slice(0,10)}.csv`;
     link.click();
-    document.body.removeChild(link);
 }
 
-// js/main.js
-
+// --- PACKAGE SWITCHER & THEME ---
 async function switchPackage(pkgType) {
-    // 1. UI Feedback: Update active button
     document.querySelectorAll('.pkg-btn').forEach(btn => btn.classList.remove('active'));
     if(pkgType === 'pkg1') document.getElementById('btn-pkg1').classList.add('active');
     if(pkgType === 'pkg3') document.getElementById('btn-pkg3').classList.add('active');
 
-    // 2. Show Loading State
     const statusEl = document.getElementById('connection-status');
-    statusEl.innerHTML = "🟡 Loading " + pkgType.toUpperCase() + "...";
+    statusEl.innerHTML = `🟡 Loading ${pkgType.toUpperCase()}...`;
 
-    // 3. Fetch New Data
-    const newData = await fetchMeterData(pkgType);
+    const newData = await fetchMeterData(pkgType); 
 
     if (newData && newData.length > 0) {
         rawData = newData;
         filteredData = [...rawData];
-        
         statusEl.innerHTML = `🟢 ${pkgType.toUpperCase()} Live: ${rawData.length} records`;
-        
-        // 4. Refresh everything with new data
         populateGlobalFiltersInitial();
-        renderDashboard();
+        applyGlobalFilters(); 
     } else {
         statusEl.innerHTML = `🔴 Error loading ${pkgType.toUpperCase()}`;
     }
 }
 
-// js/main.js
-
-// Function to start the background auto-reload
-function startAutoReload(minutes = 5) {
-    console.log(`Auto-reload scheduled every ${minutes} minutes.`);
-    
-    setInterval(async () => {
-        // 1. Identify which package is currently active
-        const activePkg = document.getElementById('btn-pkg3').classList.contains('active') ? 'pkg3' : 'pkg1';
-        
-        // 2. Silently update the status badge to show it's checking
-        const statusEl = document.getElementById('connection-status');
-        const originalStatus = statusEl.innerHTML;
-        statusEl.innerHTML = `🔄 Syncing...`;
-
-        // 3. Fetch fresh data using the Cache Buster we set up in api.js
-        const newData = await fetchMeterData(activePkg);
-
-        if (newData && newData.length > 0) {
-            // 4. Update global variables
-            rawData = newData;
-            
-            // Re-apply existing filters so the user doesn't lose their current view
-            applyGlobalFilters(); 
-            
-            statusEl.innerHTML = `🟢 Live Sync: ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-            console.log("Background data sync complete.");
-        } else {
-            statusEl.innerHTML = originalStatus; // Revert if fetch fails
-        }
-    }, minutes * 60 * 1000); 
-}
-
-// 5. Initialize the reload when the page first loads
-// Add this inside your document.addEventListener('DOMContentLoaded', ...) block
-startAutoReload(5);
-
 async function refreshData() {
-    // Get the current active package (detect which button has the 'active' class)
     const activePkg = document.getElementById('btn-pkg3').classList.contains('active') ? 'pkg3' : 'pkg1';
-    
-    // Call your switch function to reload everything
     await switchPackage(activePkg);
-    console.log("Data manually refreshed!");
 }
 
-// --- DYNAMIC HIERARCHY LOGIC ---
-// Determines what level of data to show based on the current filters
-function getGroupingColumn() {
-    const region = document.getElementById('filter-region').value;
-    const circle = document.getElementById('filter-circle').value;
-    const division = document.getElementById('filter-division').value;
-    const zone = document.getElementById('filter-zone').value;
-
-    if (zone !== "ALL") return 'Zone/DC Name';       // If Zone selected, show that Zone
-    if (division !== "ALL") return 'Zone/DC Name';   // If Division selected, show its Zones
-    if (circle !== "ALL") return 'Division Name';    // If Circle selected, show its Divisions
-    if (region !== "ALL") return 'Circle Name';      // If Region selected, show its Circles
-    return 'Region Name';                            // Default: Show Regions
+function toggleTheme() {
+    const root = document.documentElement;
+    const themeBtn = document.getElementById('theme-btn');
+    
+    if (root.getAttribute('data-theme') === 'dark') {
+        root.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'light');
+        if(themeBtn) themeBtn.innerText = '🌙'; 
+    } else {
+        root.setAttribute('data-theme', 'dark');
+        localStorage.setItem('theme', 'dark');
+        if(themeBtn) themeBtn.innerText = '☀️'; 
+    }
 }
-
