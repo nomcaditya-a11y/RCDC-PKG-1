@@ -134,14 +134,39 @@ function populateGlobalFiltersInitial() {
     syncDependentFilters();
 }
 
+// --- STRICT MM/DD/YYYY DATE PARSER ---
 function parseDateString(dateStr) {
-    if (!dateStr) return null;
-    let d = new Date(dateStr.trim());
-    if (isNaN(d.getTime())) {
-        const p = dateStr.includes('/') ? dateStr.split('/') : dateStr.split('-');
-        if (p.length >= 3) d = new Date(`${p[2].substring(0,4)}-${p[1]}-${p[0]}`);
+    // 1. Instantly reject empties or Excel errors like #N/A
+    if (!dateStr || dateStr === '#N/A' || dateStr.toString().trim() === '') return null;
+    
+    let str = dateStr.toString().trim();
+    
+    // 2. Handle pure numbers (Excel Serial Dates, just in case)
+    if (!isNaN(str) && typeof str !== 'boolean') {
+        return new Date((parseFloat(str) - 25569) * 86400 * 1000);
     }
-    return isNaN(d.getTime()) ? null : d;
+
+    // 3. STRICT MM/DD/YYYY PARSING (Fixes browser timezone/region guessing)
+    if (str.includes('/')) {
+        let parts = str.split('/');
+        if (parts.length === 3) {
+            // Force 2-digit formats (e.g., '2' becomes '02')
+            let month = parts[0].padStart(2, '0'); 
+            let day = parts[1].padStart(2, '0');
+            let year = parts[2];
+            
+            // If the year is 4 digits, format it as YYYY-MM-DD so JS universally accepts it
+            if (year.length === 4) {
+                // T00:00:00 forces it to calculate at exactly midnight local time
+                let strictDate = new Date(`${year}-${month}-${day}T00:00:00`);
+                if (!isNaN(strictDate.getTime())) return strictDate;
+            }
+        }
+    }
+    
+    // 4. Fallback for any other valid formats (like YYYY-MM-DD)
+    let fallback = new Date(str);
+    return isNaN(fallback.getTime()) ? null : fallback;
 }
 
 function isToday(dateObj) {
@@ -152,6 +177,7 @@ function isToday(dateObj) {
 
 // --- DUAL-DATE SMART FILTER LOGIC ---
 // --- DUAL-DATE SMART FILTER LOGIC (CUMULATIVE BACKLOG) ---
+// --- SMART HYBRID FILTER LOGIC ---
 // --- SMART HYBRID FILTER LOGIC ---
 function applyGlobalFilters() {
     const region = document.getElementById('filter-region').value;
@@ -164,7 +190,6 @@ function applyGlobalFilters() {
     const start = startVal ? new Date(startVal).setHours(0,0,0,0) : null;
     const end = endVal ? new Date(endVal).setHours(23,59,59,999) : null;
     
-    // Time Machine target: Use End Date. If no End Date, use Start Date. Else Today.
     let targetDate = end || start || new Date().setHours(23,59,59,999);
 
     filteredData = rawData.filter(row => {
@@ -174,24 +199,25 @@ function applyGlobalFilters() {
         if (zone !== "ALL" && safeGet(row, 'Zone/DC Name') !== zone) return false;
 
         const dDate = parseDateString(safeGet(row, 'disc. date'));
-        const rDate = parseDateString(safeGet(row, 'Reconnecion date')); // Using your exact sheet spelling!
+        // FIX: Look for BOTH spellings so it works no matter what!
+        const rDate = parseDateString(safeGet(row, 'Reconnection date') || safeGet(row, 'Reconnecion date'));
         
-        // Flag 1: Activity Disconnections (Happened inside the date range)
+        // Convert to secure timestamps for math
+        const dTime = dDate ? dDate.getTime() : null;
+        const rTime = rDate ? rDate.getTime() : null;
+
         row._isDValid = true;
         if (start || end) {
-            row._isDValid = dDate && (!start || dDate >= start) && (!end || dDate <= end);
+            row._isDValid = dTime && (!start || dTime >= start) && (!end || dTime <= end);
         }
         
-        // Flag 2: Activity Reconnections (Happened inside the date range)
         row._isRValid = true;
         if (start || end) {
-            row._isRValid = rDate && (!start || rDate >= start) && (!end || rDate <= end);
+            row._isRValid = rTime && (!start || rTime >= start) && (!end || rTime <= end);
         }
 
-        // Flag 3: Cumulative Backlog (Happened on or before the target date)
-        row._isBacklog = dDate && (dDate <= targetDate);
+        row._isBacklog = dTime && (dTime <= targetDate);
 
-        // Keep row if it's part of the activity window OR the historical backlog
         if (!row._isDValid && !row._isRValid && !row._isBacklog) return false;
         
         return true;
@@ -233,6 +259,7 @@ function getMediumCounts(data) {
 
 // --- KPIs WITH RF/CELL FOR ALL ---
 // --- HYBRID KPIs ---
+// --- HYBRID KPIs ---
 function updateKPIs(data) {
     let totalDisc = [], recon = [], disc = [], pend = [];
     let todayDisc = [], todayRecon = []; 
@@ -247,35 +274,30 @@ function updateKPIs(data) {
         let originalStatus = (safeGet(r, 'Status') || "").toLowerCase();
         let status = originalStatus;
         
-        const rDate = parseDateString(safeGet(r, 'Reconnecion date'));
         const dDate = parseDateString(safeGet(r, 'disc. date'));
+        // FIX: Look for BOTH spellings
+        const rDate = parseDateString(safeGet(r, 'Reconnection date') || safeGet(r, 'Reconnecion date'));
+        const rTime = rDate ? rDate.getTime() : null;
 
-        // TIME TRAVEL: If reconnected after target date, treat as disconnected for the backlog
-        if (originalStatus.includes('reconnected') && rDate && rDate > targetDate) {
+        // TIME TRAVEL: Use strict timestamps
+        if (originalStatus.includes('reconnected') && rTime && rTime > targetDate) {
             status = 'disconnected'; 
         }
 
-        // Blue Card: Disconnections executed in this window
-        if (r._isDValid) {
-            totalDisc.push(r);
-        }
+        if (r._isDValid) { totalDisc.push(r); }
         
-        // Green Card: Reconnections executed in this window
-        if (r._isRValid && originalStatus.includes('reconnected')) {
-            recon.push(r);
-        }
+        if (r._isRValid && originalStatus.includes('reconnected')) { recon.push(r); }
 
-        // Red & Yellow Cards: Total outstanding backlog up to the target date
         if (r._isBacklog) {
             if (status.includes('disconnected')) disc.push(r);
             else if (status.includes('pending')) pend.push(r);
         }
 
-        // Orange & Purple Cards: STRICTLY TODAY
         if(isToday(dDate)) todayDisc.push(r);
         if(isToday(rDate) && originalStatus.includes('reconnected')) todayRecon.push(r);
     });
 
+    // Update DOM
     document.getElementById('kpi-total').innerText = totalDisc.length;
     let tM = getMediumCounts(totalDisc);
     if(document.getElementById('sub-total')) document.getElementById('sub-total').innerHTML = `Cell: ${tM.cell} | RF: ${tM.rf}`;
@@ -711,5 +733,6 @@ function toggleTheme() {
         if(themeBtn) themeBtn.innerText = '☀️'; 
     }
 }
+
 
 
