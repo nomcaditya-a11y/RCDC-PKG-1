@@ -184,7 +184,7 @@ function applyGlobalFilters() {
         return true;
     });
 
-    currentMapZone = "ALL"; currentMapAging = "ALL"; currentMapComm = "NonComm"; 
+    currentMapZone = "ALL"; currentMapAging = "Above 3 Months"; currentMapComm = "NonComm"; 
     renderDashboard();
 }
 
@@ -472,7 +472,7 @@ function updateMapFilters() {
     if (currentMapComm === "NonComm") cData = cData.filter(r => (safeGet(r, 'Comm Status')||"").toLowerCase().includes('non'));
     else if (currentMapComm === "Comm") cData = cData.filter(r => !(safeGet(r, 'Comm Status')||"").toLowerCase().includes('non'));
 
-    let zData = currentMapAging !== "ALL" ? cData.filter(r => getAgingBucket(parseDateString(safeGet(r, 'disc. date'))) === currentMapAging) : cData;
+    let zData = currentMapAging !== "Above 3 Months" ? cData.filter(r => getAgingBucket(parseDateString(safeGet(r, 'disc. date'))) === currentMapAging) : cData;
     let aData = currentMapZone !== "ALL" ? cData.filter(r => safeGet(r, 'Zone/DC Name') === currentMapZone) : cData;
     
     repopulateDropdown('map-zone-filter', zData, 'Zone/DC Name', currentMapZone);
@@ -530,7 +530,7 @@ function updateMapMarkers() {
         else if (currentMapComm === "Comm" && !commStat.includes('non')) commMatch = true;
 
         if ((currentMapZone === "ALL" || safeGet(row, 'Zone/DC Name') === currentMapZone) && 
-            (currentMapAging === "ALL" || bucket === currentMapAging) && commMatch) {
+            (currentMapAging === "Above 3 Months" || bucket === currentMapAging) && commMatch) {
             
             const lat = parseFloat(safeGet(row, 'Latitute')), lng = parseFloat(safeGet(row, 'Longitude'));
             if (!isNaN(lat)) {
@@ -669,3 +669,4 @@ function toggleTheme() {
         if(themeBtn) themeBtn.innerText = '☀️'; 
     }
 }
+
