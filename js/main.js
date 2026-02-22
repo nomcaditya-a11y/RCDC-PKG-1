@@ -12,7 +12,7 @@ let markerGroup = null;
 let neighborGroup = null;
 
 let currentMapZone = "ALL";
-let currentMapAging = "Above 3 Months";
+let currentMapAging = "Above 3 Months"; // FIX: Default is now Above 3 Months
 let currentMapComm = "NonComm"; 
 
 // --- INITIALIZATION ---
@@ -32,7 +32,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         populateGlobalFiltersInitial();
         
-        // FIX: Must call applyGlobalFilters on load so the Date Flags are generated!
         applyGlobalFilters(); 
 
         document.getElementById('filter-region').addEventListener('change', syncDependentFilters);
@@ -82,7 +81,6 @@ function getChildColumn(parentCol) {
     return null; 
 }
 
-// FIX: New bulletproof accordion logic with sleek SVG icons
 window.toggleParentRow = function(rowElement, childClassName) {
     const children = document.querySelectorAll('.' + childClassName);
     const iconElement = rowElement.querySelector('.toggle-icon');
@@ -96,11 +94,9 @@ window.toggleParentRow = function(rowElement, childClassName) {
     
     if (iconElement) {
         if (isCurrentlyHidden) {
-            // Down Arrow (Open)
             iconElement.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`;
             iconElement.style.color = '#0284c7';
         } else {
-            // Right Arrow (Closed)
             iconElement.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
             iconElement.style.color = '';
         }
@@ -138,14 +134,39 @@ function populateGlobalFiltersInitial() {
     syncDependentFilters();
 }
 
+// --- STRICT MM/DD/YYYY DATE PARSER ---
 function parseDateString(dateStr) {
-    if (!dateStr) return null;
-    let d = new Date(dateStr.trim());
-    if (isNaN(d.getTime())) {
-        const p = dateStr.includes('/') ? dateStr.split('/') : dateStr.split('-');
-        if (p.length >= 3) d = new Date(`${p[2].substring(0,4)}-${p[1]}-${p[0]}`);
+    // 1. Instantly reject empties or Excel errors like #N/A
+    if (!dateStr || dateStr === '#N/A' || dateStr.toString().trim() === '') return null;
+    
+    let str = dateStr.toString().trim();
+    
+    // 2. Handle pure numbers (Excel Serial Dates, just in case)
+    if (!isNaN(str) && typeof str !== 'boolean') {
+        return new Date((parseFloat(str) - 25569) * 86400 * 1000);
     }
-    return isNaN(d.getTime()) ? null : d;
+
+    // 3. STRICT MM/DD/YYYY PARSING (Fixes browser timezone/region guessing)
+    if (str.includes('/')) {
+        let parts = str.split('/');
+        if (parts.length === 3) {
+            // Force 2-digit formats (e.g., '2' becomes '02')
+            let month = parts[0].padStart(2, '0'); 
+            let day = parts[1].padStart(2, '0');
+            let year = parts[2];
+            
+            // If the year is 4 digits, format it as YYYY-MM-DD so JS universally accepts it
+            if (year.length === 4) {
+                // T00:00:00 forces it to calculate at exactly midnight local time
+                let strictDate = new Date(`${year}-${month}-${day}T00:00:00`);
+                if (!isNaN(strictDate.getTime())) return strictDate;
+            }
+        }
+    }
+    
+    // 4. Fallback for any other valid formats (like YYYY-MM-DD)
+    let fallback = new Date(str);
+    return isNaN(fallback.getTime()) ? null : fallback;
 }
 
 function isToday(dateObj) {
@@ -155,13 +176,21 @@ function isToday(dateObj) {
 }
 
 // --- DUAL-DATE SMART FILTER LOGIC ---
+// --- DUAL-DATE SMART FILTER LOGIC (CUMULATIVE BACKLOG) ---
+// --- SMART HYBRID FILTER LOGIC ---
+// --- SMART HYBRID FILTER LOGIC ---
 function applyGlobalFilters() {
     const region = document.getElementById('filter-region').value;
     const circle = document.getElementById('filter-circle').value;
     const division = document.getElementById('filter-division').value;
     const zone = document.getElementById('filter-zone').value;
-    const start = document.getElementById('filter-start').value ? new Date(document.getElementById('filter-start').value).setHours(0,0,0,0) : null;
-    const end = document.getElementById('filter-end').value ? new Date(document.getElementById('filter-end').value).setHours(23,59,59,999) : null;
+    
+    const startVal = document.getElementById('filter-start').value;
+    const endVal = document.getElementById('filter-end').value;
+    const start = startVal ? new Date(startVal).setHours(0,0,0,0) : null;
+    const end = endVal ? new Date(endVal).setHours(23,59,59,999) : null;
+    
+    let targetDate = end || start || new Date().setHours(23,59,59,999);
 
     filteredData = rawData.filter(row => {
         if (region !== "ALL" && safeGet(row, 'Region Name') !== region) return false;
@@ -169,25 +198,36 @@ function applyGlobalFilters() {
         if (division !== "ALL" && safeGet(row, 'Division Name') !== division) return false;
         if (zone !== "ALL" && safeGet(row, 'Zone/DC Name') !== zone) return false;
 
-        // Date Logic Flags
         const dDate = parseDateString(safeGet(row, 'disc. date'));
-        const rDate = parseDateString(safeGet(row, 'reconnection date'));
+        // FIX: Look for BOTH spellings so it works no matter what!
+        const rDate = parseDateString(safeGet(row, 'Reconnection date') || safeGet(row, 'Reconnecion date'));
         
-        row._isDValid = true;
-        row._isRValid = true;
+        // Convert to secure timestamps for math
+        const dTime = dDate ? dDate.getTime() : null;
+        const rTime = rDate ? rDate.getTime() : null;
 
+        row._isDValid = true;
         if (start || end) {
-            row._isDValid = dDate && (!start || dDate >= start) && (!end || dDate <= end);
-            row._isRValid = rDate && (!start || rDate >= start) && (!end || rDate <= end);
-            if (!row._isDValid && !row._isRValid) return false;
+            row._isDValid = dTime && (!start || dTime >= start) && (!end || dTime <= end);
         }
+        
+        row._isRValid = true;
+        if (start || end) {
+            row._isRValid = rTime && (!start || rTime >= start) && (!end || rTime <= end);
+        }
+
+        row._isBacklog = dTime && (dTime <= targetDate);
+
+        if (!row._isDValid && !row._isRValid && !row._isBacklog) return false;
+        
         return true;
     });
 
-    currentMapZone = "ALL"; currentMapAging = "ALL"; currentMapComm = "NonComm"; 
+    currentMapZone = "ALL"; 
+    currentMapAging = "Above 3 Months"; 
+    currentMapComm = "NonComm"; 
     renderDashboard();
 }
-
 function resetGlobalFilters() {
     document.querySelectorAll('.filter-grid select').forEach(s => s.value = "ALL");
     document.querySelectorAll('input[type="date"]').forEach(i => i.value = "");
@@ -218,29 +258,46 @@ function getMediumCounts(data) {
 }
 
 // --- KPIs WITH RF/CELL FOR ALL ---
+// --- HYBRID KPIs ---
+// --- HYBRID KPIs ---
 function updateKPIs(data) {
     let totalDisc = [], recon = [], disc = [], pend = [];
     let todayDisc = [], todayRecon = []; 
 
+    const startVal = document.getElementById('filter-start').value;
+    const endVal = document.getElementById('filter-end').value;
+    const end = endVal ? new Date(endVal).setHours(23,59,59,999) : null;
+    const start = startVal ? new Date(startVal).setHours(0,0,0,0) : null;
+    let targetDate = end || start || new Date().setHours(23,59,59,999);
+
     data.forEach(r => {
-        const status = (safeGet(r, 'Status') || "").toLowerCase();
+        let originalStatus = (safeGet(r, 'Status') || "").toLowerCase();
+        let status = originalStatus;
         
-        if (r._isDValid) {
-            totalDisc.push(r);
+        const dDate = parseDateString(safeGet(r, 'disc. date'));
+        // FIX: Look for BOTH spellings
+        const rDate = parseDateString(safeGet(r, 'Reconnection date') || safeGet(r, 'Reconnecion date'));
+        const rTime = rDate ? rDate.getTime() : null;
+
+        // TIME TRAVEL: Use strict timestamps
+        if (originalStatus.includes('reconnected') && rTime && rTime > targetDate) {
+            status = 'disconnected'; 
+        }
+
+        if (r._isDValid) { totalDisc.push(r); }
+        
+        if (r._isRValid && originalStatus.includes('reconnected')) { recon.push(r); }
+
+        if (r._isBacklog) {
             if (status.includes('disconnected')) disc.push(r);
             else if (status.includes('pending')) pend.push(r);
         }
-        if (r._isRValid && status.includes('reconnected')) {
-            recon.push(r);
-        }
-
-        const dDate = parseDateString(safeGet(r, 'disc. date'));
-        const rDate = parseDateString(safeGet(r, 'reconnection date'));
 
         if(isToday(dDate)) todayDisc.push(r);
-        if(isToday(rDate) && status.includes('reconnected')) todayRecon.push(r);
+        if(isToday(rDate) && originalStatus.includes('reconnected')) todayRecon.push(r);
     });
 
+    // Update DOM
     document.getElementById('kpi-total').innerText = totalDisc.length;
     let tM = getMediumCounts(totalDisc);
     if(document.getElementById('sub-total')) document.getElementById('sub-total').innerHTML = `Cell: ${tM.cell} | RF: ${tM.rf}`;
@@ -391,7 +448,6 @@ function buildProgressTable(data) {
         rowIndex++;
         const hasChildren = childCol && Object.keys(v.children).length > 0;
         
-        // Clean SVG Right Arrow
         const rightArrow = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
         
         const expandIcon = hasChildren 
@@ -427,44 +483,120 @@ function getAgingBucket(d) {
     if (diff > 30) return "Above 1 Month"; if (diff > 15) return "Above 15 Days"; return "Below 15 Days"; 
 }
 
+// --- ACCORDION AGING TABLE (Swapped Rows/Cols, Drill-Down & Beautiful Alignment) ---
 function buildAgingTable(data) {
     const groupByCol = getGroupingColumn();
-    if(document.getElementById('dynamic-aging-title')) document.getElementById('dynamic-aging-title').innerText = `Aging Analysis - ${groupByCol.replace(' Name','').replace('/DC','')}`;
+    const childCol = getChildColumn(groupByCol);
     
+    let displayHeader = groupByCol.replace(' Name', '').replace('/DC', '');
+    if(document.getElementById('dynamic-aging-title')) {
+        document.getElementById('dynamic-aging-title').innerText = `Aging Analysis - ${displayHeader}`;
+    }
+    
+    // Only look at disconnected meters for Aging
     const discData = data.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
-    const cols = [...new Set(discData.map(r => safeGet(r, groupByCol)).filter(Boolean))].sort();
     const buckets = ["Above 3 Months", "Above 2 Months", "Above 1 Month", "Above 15 Days", "Below 15 Days"];
     
-    const agingData = {}; 
-    buckets.forEach(b => { agingData[b] = { T: 0 }; cols.forEach(c => agingData[b][c] = 0); });
-    
+    const tableData = {};
+    const grandTotals = { "Above 3 Months": 0, "Above 2 Months": 0, "Above 1 Month": 0, "Above 15 Days": 0, "Below 15 Days": 0, "Total": 0 };
+
+    // Grouping the Data
     discData.forEach(row => {
+        const key = safeGet(row, groupByCol) || 'Unknown';
+        if (!tableData[key]) {
+            tableData[key] = { "Above 3 Months": 0, "Above 2 Months": 0, "Above 1 Month": 0, "Above 15 Days": 0, "Below 15 Days": 0, "Total": 0, children: {} };
+        }
+        
         const b = getAgingBucket(parseDateString(safeGet(row, 'disc. date')));
-        const c = safeGet(row, groupByCol);
-        if (agingData[b] && c && agingData[b][c] !== undefined) { agingData[b][c]++; agingData[b].T++; }
+
+        if (buckets.includes(b)) {
+            // Add to Parent
+            tableData[key][b]++;
+            tableData[key].Total++;
+            
+            // Add to Grand Totals
+            grandTotals[b]++;
+            grandTotals.Total++;
+
+            // Add to Child (if drill-down exists)
+            if (childCol) {
+                const cKey = safeGet(row, childCol) || 'Unknown';
+                if (!tableData[key].children[cKey]) {
+                    tableData[key].children[cKey] = { "Above 3 Months": 0, "Above 2 Months": 0, "Above 1 Month": 0, "Above 15 Days": 0, "Below 15 Days": 0, "Total": 0 };
+                }
+                tableData[key].children[cKey][b]++;
+                tableData[key].children[cKey].Total++;
+            }
+        }
     });
 
-    document.querySelector('#aging-table thead').innerHTML = `<tr><th>Aging Bucket</th>${cols.map(c => `<th>${c}</th>`).join('')}<th>Total</th></tr>`;
+    // 1. Build Header (Neatly aligned and shortened for clean UI)
+    document.querySelector('#aging-table thead').innerHTML = `
+        <tr>
+            <th>${displayHeader}</th>
+            <th style="text-align: center;">> 3 Months</th>
+            <th style="text-align: center;">> 2 Months</th>
+            <th style="text-align: center;">> 1 Month</th>
+            <th style="text-align: center;">> 15 Days</th>
+            <th style="text-align: center;">< 15 Days</th>
+            <th style="text-align: center;">Total</th>
+        </tr>`;
+        
+    // 2. Build Body Rows
     const tbody = document.querySelector('#aging-table tbody'); 
     tbody.innerHTML = '';
     
-    const grandTotals = { Total: 0 };
-    cols.forEach(c => grandTotals[c] = 0);
+    let rowIndex = 0;
+    // Clean SVG Right Arrow
+    const rightArrow = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
 
-    buckets.forEach(b => {
-        let html = `<td>${b}</td>`; 
-        cols.forEach(c => { html += `<td>${agingData[b][c]}</td>`; grandTotals[c] += agingData[b][c]; });
-        grandTotals.Total += agingData[b].T; 
-        tbody.innerHTML += `<tr>${html}<td><strong>${agingData[b].T}</strong></td></tr>`;
-    });
+    for (const [k, v] of Object.entries(tableData)) {
+        rowIndex++;
+        const hasChildren = childCol && Object.keys(v.children).length > 0;
+        
+        const expandIcon = hasChildren 
+            ? `<span class="toggle-icon" style="margin-right:8px; display:inline-flex; align-items:center;">${rightArrow}</span>` 
+            : `<span style="display:inline-block; width:24px; margin-right:8px;"></span>`;
+        
+        // Parent Row (Numbers centered for better look)
+        tbody.innerHTML += `<tr class="parent-row" ${hasChildren ? `style="cursor:pointer;" onclick="toggleParentRow(this, 'aging-child-row-${rowIndex}')"` : ''}>
+            <td><div style="display:flex; align-items:center;">${expandIcon}<strong>${k}</strong></div></td>
+            <td style="text-align: center;">${v["Above 3 Months"]}</td>
+            <td style="text-align: center;">${v["Above 2 Months"]}</td>
+            <td style="text-align: center;">${v["Above 1 Month"]}</td>
+            <td style="text-align: center;">${v["Above 15 Days"]}</td>
+            <td style="text-align: center;">${v["Below 15 Days"]}</td>
+            <td style="text-align: center; color: var(--danger);"><strong>${v.Total}</strong></td>
+        </tr>`;
 
-    let totalHtml = `<td><strong>Grand Total</strong></td>`;
-    cols.forEach(c => totalHtml += `<td><strong>${grandTotals[c]}</strong></td>`);
-    totalHtml += `<td><strong>${grandTotals.Total}</strong></td>`;
-    tbody.innerHTML += `<tr style="background: rgba(0,0,0,0.05);">${totalHtml}</tr>`;
+        // Child Rows (Hidden by default, aligned cleanly)
+        if (hasChildren) {
+            for (const [cKey, cVal] of Object.entries(v.children)) {
+                tbody.innerHTML += `<tr class="child-row aging-child-row-${rowIndex}" style="display:none;">
+                    <td class="child-cell" style="padding-left: 2.5rem; border-left: 2px solid var(--primary);">&#8627; ${cKey}</td>
+                    <td class="child-cell" style="text-align: center;">${cVal["Above 3 Months"]}</td>
+                    <td class="child-cell" style="text-align: center;">${cVal["Above 2 Months"]}</td>
+                    <td class="child-cell" style="text-align: center;">${cVal["Above 1 Month"]}</td>
+                    <td class="child-cell" style="text-align: center;">${cVal["Above 15 Days"]}</td>
+                    <td class="child-cell" style="text-align: center;">${cVal["Below 15 Days"]}</td>
+                    <td class="child-cell" style="text-align: center; color: var(--danger);"><strong>${cVal.Total}</strong></td>
+                </tr>`;
+            }
+        }
+    }
+
+    // 3. Build Grand Total Row
+    tbody.innerHTML += `<tr style="background: rgba(0,0,0,0.05);">
+        <td><strong>Grand Total</strong></td>
+        <td style="text-align: center;"><strong>${grandTotals["Above 3 Months"]}</strong></td>
+        <td style="text-align: center;"><strong>${grandTotals["Above 2 Months"]}</strong></td>
+        <td style="text-align: center;"><strong>${grandTotals["Above 1 Month"]}</strong></td>
+        <td style="text-align: center;"><strong>${grandTotals["Above 15 Days"]}</strong></td>
+        <td style="text-align: center;"><strong>${grandTotals["Below 15 Days"]}</strong></td>
+        <td style="text-align: center; color: var(--danger);"><strong>${grandTotals.Total}</strong></td>
+    </tr>`;
 }
-
-// --- MAP & NEIGHBORS ---
+// --- MAP & NEIGHBORS (WITH JITTER FOR OVERLAPPING PINS) ---
 function updateMapFilters() {
     const mapData = filteredData.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
     
@@ -542,28 +674,36 @@ function updateMapMarkers() {
                     
                     rawData.forEach(nRow => {
                         if (nRow === row) return; 
-                        const nLat = parseFloat(safeGet(nRow, 'Latitute')); 
-                        const nLng = parseFloat(safeGet(nRow, 'Longitude'));
+                        let nLat = parseFloat(safeGet(nRow, 'Latitute')); 
+                        let nLng = parseFloat(safeGet(nRow, 'Longitude'));
                         if (isNaN(nLat)) return;
                         
                         const dist = getDistance(lat, lng, nLat, nLng);
-                        if (dist <= 100) { 
+                        if (dist <= 200) { 
                             const stat = (safeGet(nRow, 'Status')||"").toLowerCase();
                             const comm = (safeGet(nRow, 'Comm Status')||"").toLowerCase();
                             
-                            if (stat.includes('recon') || !comm.includes('non')) {
-                                const isRecon = stat.includes('recon');
+                            const isRecon = stat.includes('recon');
+                            const isComm = !comm.includes('non') && comm.trim() !== "";
+                            
+                            if (isRecon || isComm) {
+                                // FIX: Jitter for exactly identical coordinates so pins don't overlap completely
+                                if (Math.abs(nLat - lat) < 0.00001 && Math.abs(nLng - lng) < 0.00001) {
+                                    nLat += (Math.random() - 0.5) * 0.0002;
+                                    nLng += (Math.random() - 0.5) * 0.0002;
+                                }
+
                                 neighbors.push({ id: safeGet(nRow, 'meter_id'), dist: Math.round(dist), stat: isRecon ? 'Reconnected' : 'Communicating' });
                                 
-                                const nMarker = L.marker([nLat, nLng], { icon: isRecon ? bluePin : greenPin })
+                                const nMarker = L.marker([nLat, nLng], { icon: isRecon ? bluePin : greenPin, zIndexOffset: 1000 })
                                     .bindPopup(`<b style="font-size:11px; color:#333;">Neighbor Meter: ${safeGet(nRow, 'meter_id')}</b><br><span style="font-size:10px; color:${isRecon ? '#0284c7' : '#16a34a'};">${isRecon ? 'Reconnected' : 'Communicating'}</span>`);
                                 neighborGroup.addLayer(nMarker);
                             }
                         }
                     });
 
-                    let nList = neighbors.map(n => `<div class="neighbor-item">Meter: ${n.id} | <span class="${n.stat==='Reconnected'?'n-recon':'n-comm'}">${n.stat}</span> | ${n.dist}m away</div>`).join('');
-                    if(neighbors.length === 0) nList = "<div style='font-size:10px; color:#888;'>No active neighbors within 100m.</div>";
+                    let nList = neighbors.map(n => `<div class="neighbor-item">Meter: ${n.id} | <span style="color: ${n.stat === 'Reconnected' ? '#0284c7' : '#16a34a'}; font-weight: bold;">${n.stat}</span> | ${n.dist}m away</div>`).join('');
+                    if(neighbors.length === 0) nList = "<div style='font-size:10px; color:#888;'>No active neighbors within 200m.</div>";
 
                     marker.bindPopup(`
                         <div style="font-family:Inter; min-width: 200px;">
@@ -669,3 +809,7 @@ function toggleTheme() {
         if(themeBtn) themeBtn.innerText = '☀️'; 
     }
 }
+
+
+
+
