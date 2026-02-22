@@ -151,6 +151,7 @@ function isToday(dateObj) {
 }
 
 // --- DUAL-DATE SMART FILTER LOGIC ---
+// --- DUAL-DATE SMART FILTER LOGIC (CUMULATIVE BACKLOG) ---
 function applyGlobalFilters() {
     const region = document.getElementById('filter-region').value;
     const circle = document.getElementById('filter-circle').value;
@@ -166,21 +167,29 @@ function applyGlobalFilters() {
         if (zone !== "ALL" && safeGet(row, 'Zone/DC Name') !== zone) return false;
 
         const dDate = parseDateString(safeGet(row, 'disc. date'));
-        const rDate = parseDateString(safeGet(row, 'reconnection date'));
+        const rDate = parseDateString(safeGet(row, 'Reconnecion date')); // Uses your exact sheet spelling!
         
         row._isDValid = true;
         row._isRValid = true;
 
-        if (start || end) {
-            row._isDValid = dDate && (!start || dDate >= start) && (!end || dDate <= end);
-            row._isRValid = rDate && (!start || rDate >= start) && (!end || rDate <= end);
-            if (!row._isDValid && !row._isRValid) return false;
+        // 1. DISCONNECTIONS: Cumulative backlog up to the End Date (Ignores Start Date)
+        if (end) {
+            row._isDValid = dDate && (dDate <= end);
         }
+
+        // 2. RECONNECTIONS: Strictly within the selected Date Range (Start to End)
+        if (start || end) {
+            row._isRValid = rDate && (!start || rDate >= start) && (!end || rDate <= end);
+        }
+
+        // If it isn't part of the historical backlog AND wasn't reconnected in this window, hide it
+        if (!row._isDValid && !row._isRValid) return false;
+        
         return true;
     });
 
     currentMapZone = "ALL"; 
-    currentMapAging = "Above 3 Months"; // FIX: Default filter maintained
+    currentMapAging = "Above 3 Months"; 
     currentMapComm = "NonComm"; 
     renderDashboard();
 }
@@ -673,3 +682,4 @@ function toggleTheme() {
         if(themeBtn) themeBtn.innerText = '☀️'; 
     }
 }
+
