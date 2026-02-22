@@ -1,19 +1,12 @@
 /* css/styles.css */
-/* Fix Apply Filters Button Wrapping */
-.btn-group {
-    flex-wrap: nowrap !important;
-}
-.btn-primary, .btn-secondary {
-    white-space: nowrap !important; 
-    min-width: max-content !important; 
-}
+
 :root {
-    /* Glassmorphism Theme Background (Subtle Blue-Grey Mesh) */
+    /* Glassmorphism Theme Background */
     --main-bg: linear-gradient(135deg, #e0e7ff 0%, #f1f5f9 50%, #cbd5e1 100%);
     
     /* Glassmorphism Base Values */
-    --glass-bg-heavy: rgba(255, 255, 255, 0.75); /* For Header/Charts */
-    --glass-bg-light: rgba(255, 255, 255, 0.55); /* For KPIs/Filters */
+    --glass-bg-heavy: rgba(255, 255, 255, 0.75); 
+    --glass-bg-light: rgba(255, 255, 255, 0.55); 
     --glass-border: rgba(255, 255, 255, 0.8);
     --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
     
@@ -30,7 +23,6 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
 
-/* 1. BODY (Needs gradient for Glass effect to work) */
 body { 
     background: var(--main-bg); 
     background-attachment: fixed;
@@ -42,7 +34,7 @@ body {
 .container { padding: 1.5rem; max-width: 1700px; margin: 0 auto; width: 100%; }
 
 /* =========================================
-   2. FROSTED GLASS HEADER
+   1. FROSTED GLASS HEADER (Fully Responsive)
    ========================================= */
 .top-nav { 
     background: var(--glass-bg-heavy); 
@@ -52,48 +44,73 @@ body {
     box-shadow: 0 4px 10px rgba(0,0,0,0.03);
     padding: 0.8rem 1.5rem; 
     display: flex; 
-    flex-wrap: nowrap; 
+    flex-wrap: wrap; /* FIX: Allows header to wrap on smaller screens */
     justify-content: space-between; 
     align-items: center; 
+    gap: 15px;
     position: sticky;
     top: 0;
     z-index: 1000;
 }
 
-.logo-area { display: flex; align-items: center; gap: 15px; }
+.logo-area { 
+    display: flex; 
+    align-items: center; 
+    flex-wrap: wrap; 
+    gap: 12px; 
+}
 .dashboard-logo { height: 40px; width: auto; object-fit: contain; }
 
 .logo-area h1 { 
-    color: #ea580c; /* Orange Title */
-    font-size: 1.25rem; 
+    color: #ea580c; 
+    /* FIX: Dynamic text scaling and normal wrapping */
+    font-size: clamp(1.1rem, 2vw, 1.25rem); 
     font-weight: 700; 
     margin: 0; 
-    white-space: nowrap; 
+    white-space: normal; 
+    line-height: 1.2;
 }
-.logo-area span { color: #94a3b8; font-size: 1rem; margin-left: 5px; }
+.logo-area span { color: #94a3b8; font-size: 0.9rem; margin-left: 5px; white-space: nowrap; }
+
+/* FIX: Group buttons together so they don't scatter */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
 
 .pkg-switcher {
     display: flex;
-    background: rgba(0,0,0,0.03); /* Subtle indent effect */
+    background: rgba(0,0,0,0.03); 
     padding: 3px;
     border-radius: 8px;
-    margin-left: 10px;
     border: 1px solid var(--glass-border);
 }
 
 .pkg-btn {
     background: transparent; border: none; color: var(--text-muted);
-    padding: 4px 12px; border-radius: 6px; cursor: pointer;
-    font-size: 0.8rem; font-weight: 600; transition: 0.2s;
+    padding: 6px 12px; border-radius: 6px; cursor: pointer;
+    font-size: 0.85rem; font-weight: 600; transition: 0.2s;
 }
 .pkg-btn.active { background: var(--primary); color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
-.refresh-btn { margin-left: 10px; padding: 4px 8px; font-size: 1rem; background: rgba(0,0,0,0.03); border: 1px solid var(--glass-border); border-radius: 6px; cursor: pointer; }
+.refresh-btn { 
+    padding: 6px 10px; 
+    font-size: 1.1rem; 
+    background: rgba(0,0,0,0.03); 
+    border: 1px solid var(--glass-border); 
+    border-radius: 6px; 
+    cursor: pointer; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 .refresh-btn:hover { background: rgba(0,0,0,0.06); }
 .status-badge { font-size: 0.85rem; padding: 6px 12px; border-radius: 20px; background: rgba(0,0,0,0.03); border: 1px solid var(--glass-border); font-weight: 600; }
 
 /* =========================================
-   3. FROSTED GLASS BOXES (Filters, Charts, Tables)
+   2. BOXES & FILTERS
    ========================================= */
 .box { 
     background: var(--glass-bg-heavy); 
@@ -107,13 +124,10 @@ body {
     width: 100%; 
 }
 
-/* Filter Section Tweaks */
 .filter-grid { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
-.input-group { display: flex; flex-direction: column; flex: 1 1 130px; min-width: 130px; }
+.input-group { display: flex; flex-direction: column; flex: 1 1 140px; min-width: 140px; }
 .input-group label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; }
 
-/* Glass Inputs */
-/* Fix for Input Sizing */
 .input-group select, .input-group input { 
     padding: 0 0.75rem; 
     border: 1px solid rgba(0,0,0,0.1); 
@@ -122,31 +136,31 @@ body {
     background: rgba(255, 255, 255, 0.6); 
     backdrop-filter: blur(4px);
     transition: 0.3s;
-    height: 38px; /* Exact match to button height */
-    box-sizing: border-box;
+    height: 38px;
+    width: 100%;
 }
 .input-group select:focus, .input-group input:focus { border-color: var(--primary); background: #fff; outline: none; }
 
 .date-group { flex: 2 1 280px; }
-.date-inputs { display: flex; align-items: center; gap: 0.5rem; }
-.date-inputs input { flex: 1; }
+.date-inputs { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
+.date-inputs input { flex: 1; min-width: 120px; }
 
+/* FIX: Flexible buttons without breaking overlapping dates */
 .btn-group { display: flex; gap: 0.5rem; flex: 1 1 200px; }
-/* Fix for Button Sizing & Alignment */
 .btn-primary, .btn-secondary { 
     flex: 1; 
-    padding: 0 1rem; /* Removed top/bottom padding to let height control it */
+    height: 38px; 
+    padding: 0 1rem; 
     border-radius: 6px; 
     cursor: pointer; 
     font-weight: 600; 
     font-size: 0.9rem; 
     border: none; 
     transition: 0.2s;
-    white-space: nowrap; /* Prevents text from breaking into two lines */
-    height: 38px; /* Locks the exact height */
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
+    white-space: nowrap; /* Desktop wrapping prevention */
 }
 .btn-primary { background: var(--primary); color: white; }
 .btn-primary:hover { background: var(--primary-hover); }
@@ -154,13 +168,12 @@ body {
 .btn-secondary:hover { background: rgba(255,255,255,0.9); }
 
 /* =========================================
-   4. FROSTED GLASS KPIs
+   3. KPIs
    ========================================= */
 .kpi-grid { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
 .kpi-card { 
     background: var(--glass-bg-light); 
     backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
     border: 1px solid var(--glass-border);
     flex: 1 1 150px; 
     min-width: 150px; 
@@ -176,28 +189,19 @@ body {
 }
 .kpi-card:hover { transform: translateY(-5px); background: rgba(255,255,255,0.8); }
 
-.kpi-title { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.2rem; text-transform: uppercase; }
+.kpi-title { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; }
 .kpi-value { font-size: 1.8rem; font-weight: 800; line-height: 1.2; }
+.kpi-sub-stats { font-size: 0.65rem; font-weight: 600; color: var(--text-muted); margin-top: 8px; background: rgba(255,255,255,0.6); padding: 4px 10px; border-radius: 12px; border: 1px solid var(--glass-border); }
 
-/* Sub-stats for RF/Cellular */
-.kpi-sub-stats { font-size: 0.65rem; font-weight: 600; color: var(--text-muted); margin-top: 8px; background: rgba(255,255,255,0.6); padding: 3px 8px; border-radius: 12px; border: 1px solid var(--glass-border); }
+.text-green { color: var(--success); } .text-red { color: var(--danger); } .text-yellow { color: var(--warning); }
+.text-orange { color: #ea580c; } .text-purple { color: #7e22ce; }
 
-/* Status Colors & Top Borders */
-.text-green { color: var(--success); }
-.text-red { color: var(--danger); }
-.text-yellow { color: var(--warning); }
-.text-orange { color: #ea580c; }
-.text-purple { color: #7e22ce; }
-
-.border-blue { border-top: 4px solid var(--primary); }
-.border-green { border-top: 4px solid var(--success); }
-.border-red { border-top: 4px solid var(--danger); }
-.border-yellow { border-top: 4px solid var(--warning); }
-.border-orange { border-top: 4px solid #ea580c; }
-.border-purple { border-top: 4px solid #7e22ce; }
+.border-blue { border-top: 4px solid var(--primary); } .border-green { border-top: 4px solid var(--success); }
+.border-red { border-top: 4px solid var(--danger); } .border-yellow { border-top: 4px solid var(--warning); }
+.border-orange { border-top: 4px solid #ea580c; } .border-purple { border-top: 4px solid #7e22ce; }
 
 /* =========================================
-   5. CHARTS, TABLES & EXPORT BUTTONS
+   4. CHARTS, TABLES & MAP
    ========================================= */
 .charts-grid { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 1.5rem; }
 .chart-box { flex: 1 1 400px; min-width: 300px; }
@@ -206,134 +210,94 @@ body {
 .tables-grid { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 1.5rem; align-items: stretch; }
 .table-box { flex: 1 1 450px; min-width: 300px; overflow: hidden; }
 
-/* Colored Box Headers */
-.box-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 0.5rem; }
+.box-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 10px;}
 .box-header .section-title { margin-bottom: 0; padding-bottom: 0; font-size: 1.1rem; font-weight: 700; border-bottom: none; }
 
-.title-blue { color: #0284c7; }
-.title-green { color: #16a34a; }
-.title-red { color: #dc2626; }
-.title-yellow { color: #ca8a04; }
-.title-purple { color: #7e22ce; }
-.title-orange { color: #ea580c; }
+.title-blue { color: #0284c7; } .title-green { color: #16a34a; } .title-red { color: #dc2626; }
+.title-yellow { color: #ca8a04; } .title-purple { color: #7e22ce; } .title-orange { color: #ea580c; }
 
-/* Export Buttons */
 .export-btns { display: flex; gap: 5px; }
-.export-btns button { background: rgba(255,255,255,0.7); border: 1px solid var(--glass-border); border-radius: 4px; padding: 3px 8px; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
+.export-btns button { background: rgba(255,255,255,0.7); border: 1px solid var(--glass-border); border-radius: 4px; padding: 4px 10px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
 .export-btns button:hover { background: var(--primary); color: white; }
 
-/* Tables styled for Glass */
-/* Tables styled for Glass & Text Wrapping */
-.table-responsive { 
-    width: 100%; 
-    overflow-x: auto; 
-    border: 1px solid var(--glass-border); 
-    border-radius: 8px; 
-    background: rgba(255,255,255,0.4); 
-}
+.table-responsive { width: 100%; overflow-x: auto; border: 1px solid var(--glass-border); border-radius: 8px; background: rgba(255,255,255,0.4); -webkit-overflow-scrolling: touch; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; table-layout: auto; }
+.data-table th, .data-table td { padding: 0.85rem 0.75rem; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.05); white-space: normal; word-wrap: break-word; vertical-align: middle; }
+.data-table th { background: rgba(0,0,0,0.03); font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; }
+.data-table tbody tr:hover { background: rgba(255,255,255,0.6); }
 
-.data-table { 
-    width: 100%; 
-    border-collapse: collapse; 
-    font-size: 0.85rem; 
-    table-layout: auto; /* Allows dynamic resizing */
-}
+/* FIX: Table Accordion alignment for SVG arrows */
+.toggle-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; margin-right: 5px; cursor: pointer; transition: 0.2s; user-select: none; }
+.toggle-icon svg { width: 16px; height: 16px; }
+.toggle-icon:hover { color: var(--primary); }
+.child-row { background: rgba(0, 0, 0, 0.015); }
+.child-cell { font-size: 0.8rem; color: var(--text-muted) !important; padding-left: 2.5rem !important; border-left: 2px solid var(--primary); }
 
-.data-table th, .data-table td { 
-    padding: 0.75rem; 
-    text-align: left; 
-    border-bottom: 1px solid rgba(0,0,0,0.05); 
-    white-space: normal; /* THIS ALLOWS THE TEXT TO WRAP */
-    word-wrap: break-word;
-    vertical-align: middle; 
-}
-
-.data-table th { 
-    background: rgba(0,0,0,0.03); 
-    font-weight: 700; 
-    color: var(--text-muted); 
-    text-transform: uppercase; 
-    font-size: 0.75rem; 
-}
-
-.data-table tbody tr:hover { 
-    background: rgba(255,255,255,0.6); 
-}
-
-/* =========================================
-   6. MAP & POPUPS
-   ========================================= */
-.map-controls { display: flex; gap: 1rem; margin-bottom: 1rem; background: rgba(255,255,255,0.5); padding: 1rem; border-radius: 8px; border: 1px solid var(--glass-border); }
+/* Map */
+.map-controls { display: flex; gap: 1rem; margin-bottom: 1rem; background: rgba(255,255,255,0.5); padding: 1rem; border-radius: 8px; border: 1px solid var(--glass-border); flex-wrap: wrap;}
 .map-filter { display: flex; align-items: center; gap: 0.5rem; flex: 1 1 200px; }
 .map-filter label { font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
 .map-filter select { flex: 1; padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.8); }
 .modern-map { height: 500px; width: 100%; border-radius: 8px; z-index: 1; border: 2px solid var(--glass-border); }
-
-/* Custom Pins & Popups */
 .custom-pin svg { filter: drop-shadow(0px 3px 3px rgba(0,0,0,0.5)); }
 .neighbor-list { max-height: 120px; overflow-y: auto; margin-top: 5px; border-top: 1px solid #ccc; padding-top: 5px;}
 .neighbor-item { font-size: 11px; padding: 4px 0; border-bottom: 1px dashed #eee; }
-.n-comm { color: #16a34a; font-weight: bold; }
-.n-recon { color: #0284c7; font-weight: bold; }
 
 /* =========================================
-   7. AGGRESSIVE MOBILE FIXES
-   ========================================= */
-@media (max-width: 768px) {
-    .top-nav { flex-direction: column; gap: 10px; text-align: center; align-items: center; }
-    .logo-area { flex-wrap: wrap; justify-content: center; }
-    .status-badge { display: none; }
-    
-    .filter-grid { flex-direction: column; align-items: stretch; }
-    .input-group, .date-group, .btn-group { min-width: 100%; flex: 1 1 100%; }
-    .btn-group { flex-direction: column; gap: 0.75rem; }
-    
-    .kpi-card { flex: 1 1 45%; }
-    .canvas-wrapper { height: 250px; }
-    .modern-map { height: 400px; }
-    .map-controls { flex-direction: column; align-items: stretch; }
-}
-
-/* =========================================
-   8. DARK MODE GLASSMORPHISM
+   5. DARK MODE
    ========================================= */
 [data-theme="dark"] {
-    /* Dark Background Gradient */
     --main-bg: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-    
-    /* Dark Frosted Glass */
     --glass-bg-heavy: rgba(15, 23, 42, 0.75); 
     --glass-bg-light: rgba(30, 41, 59, 0.65); 
     --glass-border: rgba(255, 255, 255, 0.1);
-    
-    /* Text & Lines */
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
     --border-color: rgba(255, 255, 255, 0.05);
 }
 
-/* Fix Inputs and Tables for Dark Mode */
-[data-theme="dark"] .input-group select, 
-[data-theme="dark"] .input-group input {
-    background: rgba(15, 23, 42, 0.8);
-    color: var(--text-main);
-    border: 1px solid rgba(255,255,255,0.2);
-}
-
+[data-theme="dark"] .input-group select, [data-theme="dark"] .input-group input { background: rgba(15, 23, 42, 0.8); color: var(--text-main); border: 1px solid rgba(255,255,255,0.2); }
 [data-theme="dark"] .data-table th { background: rgba(0,0,0,0.3); color: #cbd5e1; }
 [data-theme="dark"] .data-table tbody tr:hover { background: rgba(255,255,255,0.05); }
-[data-theme="dark"] .data-table tr:last-child { background: rgba(0,0,0,0.2); }
-
 [data-theme="dark"] .map-controls { background: rgba(15, 23, 42, 0.7); }
-[data-theme="dark"] .btn-secondary { background: rgba(15,23,42,0.6); color: white; }
+[data-theme="dark"] .btn-secondary, [data-theme="dark"] .refresh-btn { background: rgba(15,23,42,0.6); color: white; }
 [data-theme="dark"] .export-btns button { background: rgba(15,23,42,0.8); }
-
-/* Make dark mode title colors pop against dark backgrounds */
-[data-theme="dark"] .title-blue { color: #38bdf8; }
-[data-theme="dark"] .title-green { color: #4ade80; }
-[data-theme="dark"] .title-red { color: #f87171; }
-[data-theme="dark"] .title-purple { color: #c084fc; }
-[data-theme="dark"] .title-orange { color: #fb923c; }
-
-/* Keep chart legends readable */
+[data-theme="dark"] .title-blue { color: #38bdf8; } [data-theme="dark"] .title-green { color: #4ade80; } [data-theme="dark"] .title-red { color: #f87171; }
+[data-theme="dark"] .title-purple { color: #c084fc; } [data-theme="dark"] .title-orange { color: #fb923c; }
 [data-theme="dark"] canvas { filter: drop-shadow(0 0 4px rgba(0,0,0,0.5)); }
+[data-theme="dark"] .child-row { background: rgba(255, 255, 255, 0.02) !important; }
+
+/* =========================================
+   6. AGGRESSIVE MOBILE FIXES
+   ========================================= */
+@media (max-width: 900px) {
+    .container { padding: 0.75rem; }
+    .box { padding: 1rem; }
+    
+    /* Header Stacking */
+    .top-nav { flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 1rem; }
+    .logo-area { justify-content: center; width: 100%; text-align: center; }
+    .header-controls { justify-content: center; width: 100%; }
+    .status-badge { width: 100%; text-align: center; margin-top: 5px; }
+    
+    /* Filters */
+    .filter-grid { flex-direction: column; align-items: stretch; }
+    .input-group, .date-group { width: 100%; min-width: 100%; }
+    
+    /* Fix the Date Pickers */
+    .date-inputs { flex-direction: column; align-items: stretch; gap: 8px; }
+    .date-inputs span { text-align: center; font-weight: bold; font-size: 0.8rem; }
+    
+    /* FIX: Button Group Stacking cleanly on mobile */
+    .btn-group { flex-direction: column; width: 100%; min-width: 100%; gap: 10px; }
+    .btn-primary, .btn-secondary { width: 100%; margin: 0; white-space: normal; height: 42px; }
+    
+    /* KPI & Charts */
+    .kpi-card { flex: 1 1 45%; padding: 1rem; }
+    .canvas-wrapper { height: 250px; }
+    
+    /* Map */
+    .modern-map { height: 400px; }
+    .map-controls { flex-direction: column; align-items: stretch; }
+    .map-filter { flex-direction: column; align-items: stretch; }
+}
