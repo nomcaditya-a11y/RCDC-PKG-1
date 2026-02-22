@@ -152,13 +152,20 @@ function isToday(dateObj) {
 
 // --- DUAL-DATE SMART FILTER LOGIC ---
 // --- DUAL-DATE SMART FILTER LOGIC (CUMULATIVE BACKLOG) ---
+// --- SMART HYBRID FILTER LOGIC ---
 function applyGlobalFilters() {
     const region = document.getElementById('filter-region').value;
     const circle = document.getElementById('filter-circle').value;
     const division = document.getElementById('filter-division').value;
     const zone = document.getElementById('filter-zone').value;
-    const start = document.getElementById('filter-start').value ? new Date(document.getElementById('filter-start').value).setHours(0,0,0,0) : null;
-    const end = document.getElementById('filter-end').value ? new Date(document.getElementById('filter-end').value).setHours(23,59,59,999) : null;
+    
+    const startVal = document.getElementById('filter-start').value;
+    const endVal = document.getElementById('filter-end').value;
+    const start = startVal ? new Date(startVal).setHours(0,0,0,0) : null;
+    const end = endVal ? new Date(endVal).setHours(23,59,59,999) : null;
+    
+    // Time Machine target: Use End Date. If no End Date, use Start Date. Else Today.
+    let targetDate = end || start || new Date().setHours(23,59,59,999);
 
     filteredData = rawData.filter(row => {
         if (region !== "ALL" && safeGet(row, 'Region Name') !== region) return false;
@@ -167,23 +174,25 @@ function applyGlobalFilters() {
         if (zone !== "ALL" && safeGet(row, 'Zone/DC Name') !== zone) return false;
 
         const dDate = parseDateString(safeGet(row, 'disc. date'));
-        const rDate = parseDateString(safeGet(row, 'Reconnecion date')); // Uses your exact sheet spelling!
+        const rDate = parseDateString(safeGet(row, 'Reconnecion date')); // Using your exact sheet spelling!
         
+        // Flag 1: Activity Disconnections (Happened inside the date range)
         row._isDValid = true;
-        row._isRValid = true;
-
-        // 1. DISCONNECTIONS: Cumulative backlog up to the End Date (Ignores Start Date)
-        if (end) {
-            row._isDValid = dDate && (dDate <= end);
+        if (start || end) {
+            row._isDValid = dDate && (!start || dDate >= start) && (!end || dDate <= end);
         }
-
-        // 2. RECONNECTIONS: Strictly within the selected Date Range (Start to End)
+        
+        // Flag 2: Activity Reconnections (Happened inside the date range)
+        row._isRValid = true;
         if (start || end) {
             row._isRValid = rDate && (!start || rDate >= start) && (!end || rDate <= end);
         }
 
-        // If it isn't part of the historical backlog AND wasn't reconnected in this window, hide it
-        if (!row._isDValid && !row._isRValid) return false;
+        // Flag 3: Cumulative Backlog (Happened on or before the target date)
+        row._isBacklog = dDate && (dDate <= targetDate);
+
+        // Keep row if it's part of the activity window OR the historical backlog
+        if (!row._isDValid && !row._isRValid && !row._isBacklog) return false;
         
         return true;
     });
@@ -193,7 +202,6 @@ function applyGlobalFilters() {
     currentMapComm = "NonComm"; 
     renderDashboard();
 }
-
 function resetGlobalFilters() {
     document.querySelectorAll('.filter-grid select').forEach(s => s.value = "ALL");
     document.querySelectorAll('input[type="date"]').forEach(i => i.value = "");
@@ -224,27 +232,48 @@ function getMediumCounts(data) {
 }
 
 // --- KPIs WITH RF/CELL FOR ALL ---
+// --- HYBRID KPIs ---
 function updateKPIs(data) {
     let totalDisc = [], recon = [], disc = [], pend = [];
     let todayDisc = [], todayRecon = []; 
 
+    const startVal = document.getElementById('filter-start').value;
+    const endVal = document.getElementById('filter-end').value;
+    const end = endVal ? new Date(endVal).setHours(23,59,59,999) : null;
+    const start = startVal ? new Date(startVal).setHours(0,0,0,0) : null;
+    let targetDate = end || start || new Date().setHours(23,59,59,999);
+
     data.forEach(r => {
-        const status = (safeGet(r, 'Status') || "").toLowerCase();
+        let originalStatus = (safeGet(r, 'Status') || "").toLowerCase();
+        let status = originalStatus;
         
+        const rDate = parseDateString(safeGet(r, 'Reconnecion date'));
+        const dDate = parseDateString(safeGet(r, 'disc. date'));
+
+        // TIME TRAVEL: If reconnected after target date, treat as disconnected for the backlog
+        if (originalStatus.includes('reconnected') && rDate && rDate > targetDate) {
+            status = 'disconnected'; 
+        }
+
+        // Blue Card: Disconnections executed in this window
         if (r._isDValid) {
             totalDisc.push(r);
-            if (status.includes('disconnected')) disc.push(r);
-            else if (status.includes('pending')) pend.push(r);
         }
-        if (r._isRValid && status.includes('reconnected')) {
+        
+        // Green Card: Reconnections executed in this window
+        if (r._isRValid && originalStatus.includes('reconnected')) {
             recon.push(r);
         }
 
-        const dDate = parseDateString(safeGet(r, 'disc. date'));
-        const rDate = parseDateString(safeGet(r, 'reconnection date'));
+        // Red & Yellow Cards: Total outstanding backlog up to the target date
+        if (r._isBacklog) {
+            if (status.includes('disconnected')) disc.push(r);
+            else if (status.includes('pending')) pend.push(r);
+        }
 
+        // Orange & Purple Cards: STRICTLY TODAY
         if(isToday(dDate)) todayDisc.push(r);
-        if(isToday(rDate) && status.includes('reconnected')) todayRecon.push(r);
+        if(isToday(rDate) && originalStatus.includes('reconnected')) todayRecon.push(r);
     });
 
     document.getElementById('kpi-total').innerText = totalDisc.length;
@@ -682,4 +711,5 @@ function toggleTheme() {
         if(themeBtn) themeBtn.innerText = '☀️'; 
     }
 }
+
 
