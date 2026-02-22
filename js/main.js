@@ -626,7 +626,7 @@ function updateMapMarkers() {
                         }
                     });
 
-                    let nList = neighbors.map(n => `<div class="neighbor-item">Meter: ${n.id} | <span class="${n.stat==='Reconnected'?'n-recon':'n-comm'}">${n.stat}</span> | ${n.dist}m away</div>`).join('');
+                    let nList = neighbors.map(n => `<div class="neighbor-item">Meter: ${n.id} | <span style="color: ${n.stat === 'Reconnected' ? '#0284c7' : '#16a34a'}; font-weight: bold;">${n.stat}</span> | ${n.dist}m away</div>`).join('');
                     if(neighbors.length === 0) nList = "<div style='font-size:10px; color:#888;'>No active neighbors within 200m.</div>";
 
                     marker.bindPopup(`
@@ -733,6 +733,7 @@ function toggleTheme() {
         if(themeBtn) themeBtn.innerText = '☀️'; 
     }
 }
+
 
 
 
