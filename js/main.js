@@ -139,7 +139,7 @@ function parseDateString(dateStr) {
     // 1. Instantly reject empties or Excel errors like #N/A
     if (!dateStr || dateStr === '#N/A' || dateStr.toString().trim() === '') return null;
     
-    let str = dateStr.toString().trim();
+  let str = dateStr.toString().trim().split(' ')[0];
     
     // 2. Handle pure numbers (Excel Serial Dates, just in case)
     if (!isNaN(str) && typeof str !== 'boolean') {
@@ -911,6 +911,14 @@ function toggleTheme() {
 
 
 
+// --- BULLETPROOF 'TODAY' CHECKER ---
+function isToday(someDate) {
+    if (!someDate || isNaN(someDate.getTime())) return false;
+    const today = new Date();
+    return someDate.getDate() === today.getDate() &&
+           someDate.getMonth() === today.getMonth() &&
+           someDate.getFullYear() === today.getFullYear();
+}
 
 
 
