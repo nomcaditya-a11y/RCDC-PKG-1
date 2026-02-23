@@ -468,7 +468,7 @@ function buildProgressTable(data) {
         tableData[key].t = tableData[key].r + tableData[key].d + tableData[key].p;
     });
 
-    document.querySelector('#progress-table thead').innerHTML = `<tr><th>${displayHeader}</th><th>Reconnected</th><th>Disconnected</th><th>Pending</th><th>Total</th></tr>`;
+    document.querySelector('#progress-table thead').innerHTML = `<tr><th>${displayHeader}</th><th>Reconnected</th><th>Still Disconnected</th><th>Pending</th><th>Total</th></tr>`;
     const tbody = document.querySelector('#progress-table tbody'); 
     tbody.innerHTML = '';
     
@@ -966,5 +966,6 @@ window.downloadTodayData = function(type) {
     // Trigger the existing CSV download function
     triggerCSVDownload(dataToDownload, filename);
 };
+
 
 
