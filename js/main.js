@@ -5,7 +5,7 @@ Chart.register(ChartDataLabels);
 
 // --- GLOBAL STATE ---
 let rawData = [];
-let todayExportData = { disc: [], req: [], recon: [] };
+let todayExportData = { disc: [], req: [] };
 let filteredData = [];
 let chartInstances = {}; 
 let mapInstance = null;
@@ -264,9 +264,10 @@ function getMediumCounts(data) {
 // --- HYBRID KPIs ---
 // --- HYBRID KPIs ---
 // --- HYBRID KPIs WITH TODAY'S ACTIVITY LOGIC ---
+// --- HYBRID KPIs WITH LRCF & TODAY'S ACTIVITY LOGIC ---
 function updateKPIs(data) {
-    let totalDisc = [], recon = [], disc = [], pend = [];
-    let todayDisc = [], todayRecon = [], todayReq = []; // Added todayReq
+    let totalDisc = [], recon = [], disc = [], pend = [], lrcf = [];
+    let todayDisc = [], todayReq = []; 
 
     const startVal = document.getElementById('filter-start').value;
     const endVal = document.getElementById('filter-end').value;
@@ -294,40 +295,50 @@ function updateKPIs(data) {
         if (r._isBacklog) {
             if (status.includes('disconnected')) disc.push(r);
             else if (status.includes('pending')) pend.push(r);
+            else if (status.includes('lrcf')) lrcf.push(r); // LRCF logic added
         }
 
-        // --- NEW TODAY LOGIC ---
+        // --- TODAY LOGIC ---
         if(isToday(dDate)) {
             todayDisc.push(r);
         }
-        
         if(isToday(rDate)) {
-            todayReq.push(r); // Counts all requests for today, regardless of status
-            
-            if (originalStatus.includes('reconnected')) {
-                todayRecon.push(r); // Counts ONLY actually reconnected meters
-            }
+            todayReq.push(r); 
         }
     });
 
-    // --- UPDATE DOM FOR TOP KPIs ---
-    document.getElementById('kpi-total').innerText = totalDisc.length;
-    let tM = getMediumCounts(totalDisc);
-    if(document.getElementById('sub-total')) document.getElementById('sub-total').innerHTML = `Cell: ${tM.cell} | RF: ${tM.rf}`;
+    // --- UPDATE DOM FOR MAIN KPIs ---
+    if(document.getElementById('kpi-total')) {
+        document.getElementById('kpi-total').innerText = totalDisc.length;
+        let tM = getMediumCounts(totalDisc);
+        if(document.getElementById('sub-total')) document.getElementById('sub-total').innerHTML = `Cell: ${tM.cell} | RF: ${tM.rf}`;
+    }
 
-    document.getElementById('kpi-reconnected').innerText = recon.length;
-    let rM = getMediumCounts(recon);
-    if(document.getElementById('sub-recon')) document.getElementById('sub-recon').innerHTML = `Cell: ${rM.cell} | RF: ${rM.rf}`;
+    if(document.getElementById('kpi-reconnected')) {
+        document.getElementById('kpi-reconnected').innerText = recon.length;
+        let rM = getMediumCounts(recon);
+        if(document.getElementById('sub-recon')) document.getElementById('sub-recon').innerHTML = `Cell: ${rM.cell} | RF: ${rM.rf}`;
+    }
 
-    document.getElementById('kpi-disconnected').innerText = disc.length;
-    let dM = getMediumCounts(disc);
-    if(document.getElementById('sub-disc')) document.getElementById('sub-disc').innerHTML = `Cell: ${dM.cell} | RF: ${dM.rf}`;
+    if(document.getElementById('kpi-disconnected')) {
+        document.getElementById('kpi-disconnected').innerText = disc.length;
+        let dM = getMediumCounts(disc);
+        if(document.getElementById('sub-disc')) document.getElementById('sub-disc').innerHTML = `Cell: ${dM.cell} | RF: ${dM.rf}`;
+    }
 
-    document.getElementById('kpi-pending').innerText = pend.length;
-    let pM = getMediumCounts(pend);
-    if(document.getElementById('sub-pend')) document.getElementById('sub-pend').innerHTML = `Cell: ${pM.cell} | RF: ${pM.rf}`;
+    if(document.getElementById('kpi-lrcf')) {
+        document.getElementById('kpi-lrcf').innerText = lrcf.length;
+        let lM = getMediumCounts(lrcf);
+        if(document.getElementById('sub-lrcf')) document.getElementById('sub-lrcf').innerHTML = `Cell: ${lM.cell} | RF: ${lM.rf}`;
+    }
 
-    // --- UPDATE DOM FOR NEW "TODAY" CARD ---
+    if(document.getElementById('kpi-pending')) {
+        document.getElementById('kpi-pending').innerText = pend.length;
+        let pM = getMediumCounts(pend);
+        if(document.getElementById('sub-pend')) document.getElementById('sub-pend').innerHTML = `Cell: ${pM.cell} | RF: ${pM.rf}`;
+    }
+
+    // --- UPDATE DOM FOR "TODAY" CARD ---
     if(document.getElementById('kpi-today-disc')) {
         document.getElementById('kpi-today-disc').innerText = todayDisc.length;
         let tdM = getMediumCounts(todayDisc);
@@ -340,16 +351,9 @@ function updateKPIs(data) {
         if(document.getElementById('sub-today-req')) document.getElementById('sub-today-req').innerHTML = `Cell: ${tReqM.cell} | RF: ${tReqM.rf}`;
     }
 
-    if(document.getElementById('kpi-today-recon')) {
-        document.getElementById('kpi-today-recon').innerText = todayRecon.length;
-        let trM = getMediumCounts(todayRecon);
-        if(document.getElementById('sub-today-recon')) document.getElementById('sub-today-recon').innerHTML = `Cell: ${trM.cell} | RF: ${trM.rf}`;
-    }
-
-    // --- SAVE TO GLOBAL MEMORY FOR EXCEL DOWNLOADS ---
+    // Save Data to Global Memory
     todayExportData.disc = todayDisc;
     todayExportData.req = todayReq;
-    todayExportData.recon = todayRecon;
 }
 
 // --- CHARTS ---
@@ -754,18 +758,54 @@ function updateMapMarkers() {
 }
 
 // --- EXPORT LOGIC ---
-function downloadKPIData(type) {
-    let data = [];
-    if(type === 'total') data = filteredData.filter(r => r._isDValid);
-    else if(type === 'reconnected') data = filteredData.filter(r => r._isRValid && (safeGet(r, 'Status')||"").toLowerCase().includes('reconnected'));
-    else if(type === 'disconnected') data = filteredData.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
-    else if(type === 'pending') data = filteredData.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('pending'));
-    else if(type === 'today-disc') data = filteredData.filter(r => isToday(parseDateString(safeGet(r, 'disc. date'))));
-    else if(type === 'today-recon') data = filteredData.filter(r => isToday(parseDateString(safeGet(r, 'reconnection date'))));
+// --- CLICK-TO-DOWNLOAD EXPORT FUNCTIONS (WITH CLEANER & EXCEL) ---
+window.downloadKPIData = function(type) {
+    if (!filteredData || filteredData.length === 0) return alert("No data available!");
     
-    if(data.length===0) return alert("No data to download.");
-    triggerCSVDownload(data, `${type}_Report`);
-}
+    let exportData = [];
+    let filename = `KPI_${type.toUpperCase()}_Data`;
+
+    const endVal = document.getElementById('filter-end').value;
+    const targetDate = endVal ? new Date(endVal).setHours(23,59,59,999) : new Date().setHours(23,59,59,999);
+
+    filteredData.forEach(r => {
+        let originalStatus = (safeGet(r, 'Status') || "").toLowerCase();
+        let status = originalStatus;
+        
+        const rDate = parseDateString(safeGet(r, 'Reconnection date') || safeGet(r, 'Reconnecion date'));
+        const rTime = rDate ? rDate.getTime() : null;
+
+        if (originalStatus.includes('reconnected') && rTime && rTime > targetDate) {
+            status = 'disconnected'; 
+        }
+
+        if (type === 'total' && r._isDValid) exportData.push(r);
+        else if (type === 'reconnected' && r._isRValid && originalStatus.includes('recon')) exportData.push(r);
+        else if (type === 'disconnected' && r._isBacklog && status.includes('disc')) exportData.push(r);
+        else if (type === 'pending' && r._isBacklog && status.includes('pending')) exportData.push(r);
+        else if (type === 'lrcf' && r._isBacklog && status.includes('lrcf')) exportData.push(r); // LRCF Export Added
+    });
+
+    if (exportData.length === 0) return alert("No meters found for this category!");
+    
+    // Clean useless columns and generate decorative Excel!
+    let sanitizedData = cleanDataForExport(exportData, type);
+    triggerExcelDownload(sanitizedData, filename);
+};
+
+window.downloadTodayData = function(type) {
+    let dataToDownload = todayExportData[type];
+    
+    if (!dataToDownload || dataToDownload.length === 0) {
+        return alert("No meters found in this category for today!");
+    }
+
+    let filename = type === 'disc' ? "Today_Disconnected_Meters" : "Today_RC_Requests";
+    
+    // Clean useless columns and generate decorative Excel!
+    let sanitizedData = cleanDataForExport(dataToDownload, type);
+    triggerExcelDownload(sanitizedData, filename);
+};
 
 // --- EXPORT LOGIC (RAW DATA & PDF TABLES) ---
 
@@ -968,4 +1008,58 @@ window.downloadTodayData = function(type) {
 };
 
 
+// --- DATA CLEANER FOR EXPORTS ---
+function cleanDataForExport(dataArray, categoryType) {
+    return dataArray.map(row => {
+        let cleanRow = { ...row };
+        
+        // Delete internal system columns (starting with _)
+        Object.keys(cleanRow).forEach(key => {
+            if (key.startsWith('_')) delete cleanRow[key];
+        });
+
+        // Delete Reconnection details if the meter is not reconnected
+        if (['disconnected', 'pending', 'lrcf', 'disc'].includes(categoryType)) {
+            delete cleanRow['Reconnection date'];
+            delete cleanRow['Reconnecion date']; 
+            delete cleanRow['Reconnection time'];
+            delete cleanRow['Reconnection Remark'];
+            delete cleanRow['RC BY'];
+        }
+        return cleanRow;
+    });
+}
+
+// --- DECORATIVE EXCEL (.xlsx) GENERATOR ---
+async function triggerExcelDownload(dataArray, filename) {
+    if (!dataArray || dataArray.length === 0) return alert("No data to download!");
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Report Data');
+    const headers = Object.keys(dataArray[0]);
+
+    worksheet.columns = headers.map(h => ({ header: h.toUpperCase(), key: h, width: 20 }));
+    worksheet.addRows(dataArray);
+
+    const headerRow = worksheet.getRow(1);
+    headerRow.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0284C7' } };
+        cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 11 };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+    });
+
+    worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 1) { 
+            row.eachCell((cell) => {
+                cell.border = { top: {style:'thin', color: {argb:'FFCBD5E1'}}, left: {style:'thin', color: {argb:'FFCBD5E1'}}, bottom: {style:'thin', color: {argb:'FFCBD5E1'}}, right: {style:'thin', color: {argb:'FFCBD5E1'}} };
+                cell.alignment = { vertical: 'middle', horizontal: 'left' };
+            });
+        }
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, `RCDC_${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
 
