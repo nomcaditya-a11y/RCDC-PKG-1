@@ -325,3 +325,13 @@ body {
         grid-column: span 1;
     }
 }
+/* Desktop Layout - Now set to 3 Columns for the remaining visible cards */
+@media (min-width: 1200px) {
+    .kpi-grid {
+        /* Changed to 3 equal columns */
+        grid-template-columns: 1fr 1fr 1fr; 
+    }
+    .kpi-grid .card:last-child {
+        grid-column: span 1; 
+    }
+}
