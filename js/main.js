@@ -523,7 +523,7 @@ function buildAgingTable(data) {
     
     let displayHeader = groupByCol.replace(' Name', '').replace('/DC', '');
     if(document.getElementById('dynamic-aging-title')) {
-        document.getElementById('dynamic-aging-title').innerText = `Aging Analysis - ${displayHeader}`;
+        document.getElementById('dynamic-aging-title').innerText = `Still Disconnected Aging Analysis - ${displayHeader}`;
     }
     
     // Only look at disconnected meters for Aging
@@ -1062,4 +1062,5 @@ async function triggerExcelDownload(dataArray, filename) {
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     saveAs(blob, `RCDC_${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
+
 
