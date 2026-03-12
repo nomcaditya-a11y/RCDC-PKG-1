@@ -292,7 +292,7 @@ body {
 }
 
 /* =========================================
-   7. RESPONSIVE KPI GRID (Fixed for 6 Cards)
+   7. RESPONSIVE KPI GRID (Updated for 4 Visible Cards)
    ========================================= */
 
 /* Mobile First - Stack in 1 column */
@@ -308,30 +308,20 @@ body {
     .kpi-grid {
         grid-template-columns: 1fr 1fr;
     }
-    /* Make the 6th card (Today's Activity) stretch across both columns on tablet */
+    /* Make the SAT card stretch across both columns on tablet */
     .kpi-grid .card:last-child {
         grid-column: span 2;
     }
 }
 
-/* Desktop Layout - 6 Columns */
+/* Desktop Layout - 4 Columns (3 standard + 1 wide SAT card) */
 @media (min-width: 1200px) {
     .kpi-grid {
-        /* 5 equal cards + 1 slightly wider card for Today's Activity */
-        grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1.5fr;
+        /* 3 equal cards + 1 wider card for SAT at the end */
+        grid-template-columns: 1fr 1fr 1fr 2.6fr;
     }
-    /* Reset the span so it stays in one row */
+    /* Keep SAT card in the single row on desktop */
     .kpi-grid .card:last-child {
         grid-column: span 1;
-    }
-}
-/* Desktop Layout - Now set to 3 Columns for the remaining visible cards */
-@media (min-width: 1200px) {
-    .kpi-grid {
-        /* Changed to 3 equal columns */
-        grid-template-columns: 1fr 1fr 1fr; 
-    }
-    .kpi-grid .card:last-child {
-        grid-column: span 1; 
     }
 }
