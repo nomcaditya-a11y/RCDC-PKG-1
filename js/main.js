@@ -139,6 +139,7 @@ function populateGlobalFiltersInitial() {
 
 // --- STRICT MM/DD/YYYY DATE PARSER ---
 // --- STRICT DD/MM/YYYY DATE PARSER (Fixed for Indian Format) ---
+// --- STRICT MM/DD/YYYY DATE PARSER ---
 function parseDateString(dateStr) {
     if (!dateStr || dateStr === '#N/A' || dateStr.toString().trim() === '') return null;
     let str = dateStr.toString().trim().split(' ')[0];
@@ -148,7 +149,7 @@ function parseDateString(dateStr) {
         return new Date((parseFloat(str) - 25569) * 86400 * 1000);
     }
 
-    // 2. Handle DD/MM/YYYY or DD-MM-YYYY
+    // 2. Handle MM/DD/YYYY or MM-DD-YYYY
     let parts = str.includes('/') ? str.split('/') : str.split('-');
     
     if (parts.length === 3) {
@@ -160,12 +161,12 @@ function parseDateString(dateStr) {
             let strictDate = new Date(`${year}-${month}-${day}T00:00:00`);
             if (!isNaN(strictDate.getTime())) return strictDate;
         } 
-        // Normal Indian Format (DD/MM/YYYY)
+        // MM/DD/YYYY Format
         else {
-            let day = parts[0].padStart(2, '0');
-            let month = parts[1].padStart(2, '0');
+            let month = parts[0].padStart(2, '0'); // Month is FIRST
+            let day = parts[1].padStart(2, '0');   // Day is SECOND
             let year = parts[2];
-            if (year.length === 2) year = '20' + year; // Converts '25' to '2025'
+            if (year.length === 2) year = '20' + year; 
             
             let strictDate = new Date(`${year}-${month}-${day}T00:00:00`);
             if (!isNaN(strictDate.getTime())) return strictDate;
@@ -1047,4 +1048,5 @@ async function exportBoxData(type, format) {
         doc.save(`RCDC_${type}_RawData_${new Date().toISOString().slice(0,10)}.pdf`);
     }
 }
+
 
