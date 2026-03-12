@@ -292,36 +292,34 @@ body {
 }
 
 /* =========================================
-   7. RESPONSIVE KPI GRID (Updated for 4 Visible Cards)
+   7. RESPONSIVE KPI GRID (Forced 4 Cards on 1 Line)
    ========================================= */
 
 /* Mobile First - Stack in 1 column */
 .kpi-grid {
-    display: grid;
+    display: grid !important; /* Force Grid to prevent wrapping */
     grid-template-columns: 1fr;
-    gap: 15px;
+    gap: 10px !important;
     margin-bottom: 25px;
 }
 
 /* Tablet Layout - 2 columns */
 @media (min-width: 768px) {
-    .kpi-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-    /* Make the SAT card stretch across both columns on tablet */
-    .kpi-grid .card:last-child {
-        grid-column: span 2;
-    }
+    .kpi-grid { grid-template-columns: 1fr 1fr !important; }
+    .kpi-grid .card:last-child { grid-column: span 2 !important; }
 }
 
-/* Desktop Layout - 4 Columns (3 standard + 1 wide SAT card) */
-@media (min-width: 1200px) {
+/* Laptop & Desktop Layout - Force 4 Columns on 1 Line */
+@media (min-width: 1024px) {
     .kpi-grid {
-        /* 3 equal cards + 1 wider card for SAT at the end */
-        grid-template-columns: 1fr 1fr 1fr 2.6fr;
+        /* minmax(0, ...) allows cards to shrink safely without breaking the row */
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2.2fr) !important;
     }
-    /* Keep SAT card in the single row on desktop */
-    .kpi-grid .card:last-child {
-        grid-column: span 1;
-    }
+    .kpi-grid .card:last-child { grid-column: span 1 !important; }
+    
+    /* Shrink the standard cards to make room for the SAT card */
+    .kpi-card { padding: 15px 5px !important; }
+    .kpi-title { font-size: 0.65rem !important; }
+    .kpi-value { font-size: 1.5rem !important; }
+    .kpi-sub-stats { font-size: 0.6rem !important; padding: 3px 6px !important; }
 }
