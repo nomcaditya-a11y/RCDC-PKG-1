@@ -107,7 +107,42 @@
 
     <div style="display: none !important; class="card kpi-card" style="display: flex; flex-direction: column; justify-content: center; border-top: 4px solid #6366f1; padding: 15px;">
         <h3 style="text-align: center; font-size: 0.9rem; color: #475569; letter-spacing: 1px; margin-bottom: 15px; text-transform: uppercase;">TODAY'S ACTIVITY</h3>
+    <div class="card kpi-card" onclick="downloadKPIData('sat')" title="Click to download SAT Excel data" style="display: flex; flex-direction: column; justify-content: center; border-top: 4px solid #14b8a6; padding: 15px; grid-column: 1 / -1; cursor: pointer; transition: 0.2s;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.8)'" onmouseout="this.style.backgroundColor='var(--glass-bg-light)'">
+        <h3 style="text-align: center; font-size: 0.9rem; color: #475569; letter-spacing: 1px; margin-bottom: 15px; text-transform: uppercase;">SAT Meters Overview 📥</h3>
         
+        <div style="display: flex; justify-content: space-around; align-items: flex-start; text-align: center; width: 100%; flex-wrap: wrap; gap: 10px;">
+            
+            <div style="flex: 1; min-width: 120px; margin-bottom: 10px;">
+                <h4 style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">TOTAL DISC.</h4>
+                <p id="kpi-sat-total" style="font-size: 1.8rem; font-weight: bold; color: #0284c7; margin: 5px 0;">0</p>
+                <div id="sub-sat-total" style="font-size: 0.7rem; color: #64748b; background: rgba(255,255,255,0.6); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--glass-border); display: inline-block;">Cell: 0 | RF: 0</div>
+            </div>
+            
+            <div style="width: 1px; background-color: #e2e8f0; min-height: 50px; display: block;"></div>
+            
+            <div style="flex: 1; min-width: 120px; margin-bottom: 10px;">
+                <h4 style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">RECONNECTED</h4>
+                <p id="kpi-sat-recon" style="font-size: 1.8rem; font-weight: bold; color: #16a34a; margin: 5px 0;">0</p>
+                <div id="sub-sat-recon" style="font-size: 0.7rem; color: #64748b; background: rgba(255,255,255,0.6); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--glass-border); display: inline-block;">Cell: 0 | RF: 0</div>
+            </div>
+
+            <div style="width: 1px; background-color: #e2e8f0; min-height: 50px; display: block;"></div>
+
+            <div style="flex: 1.5; min-width: 220px; margin-bottom: 10px;">
+                <h4 style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">STILL DISC.</h4>
+                <p id="kpi-sat-disc" style="font-size: 1.8rem; font-weight: bold; color: #dc2626; margin: 5px 0;">0</p>
+                <div style="display: flex; gap: 5px; justify-content: center; font-size: 0.65rem; color: #64748b; flex-wrap: wrap;">
+                    <div style="background: rgba(255,255,255,0.6); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                        <b style="color: #16a34a;">Comm:</b> <span id="sub-sat-disc-comm">C:0 | R:0</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.6); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                        <b style="color: #ea580c;">NonComm:</b> <span id="sub-sat-disc-non">C:0 | R:0</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
         <div style="display: flex; justify-content: space-around; align-items: center; text-align: center; width: 100%;">
             
             <div onclick="downloadTodayData('disc')" style="cursor: pointer; padding: 8px; border-radius: 8px; transition: 0.2s; width: 50%;" title="Click to download Excel data" onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor='transparent'">
@@ -234,6 +269,7 @@
     <script src="js/main.js"></script>
 </body>
 </html>
+
 
 
 
