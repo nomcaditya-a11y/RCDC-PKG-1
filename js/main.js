@@ -138,28 +138,41 @@ function populateGlobalFiltersInitial() {
 }
 
 // --- STRICT MM/DD/YYYY DATE PARSER ---
+// --- STRICT DD/MM/YYYY DATE PARSER (Fixed for Indian Format) ---
 function parseDateString(dateStr) {
     if (!dateStr || dateStr === '#N/A' || dateStr.toString().trim() === '') return null;
     let str = dateStr.toString().trim().split(' ')[0];
     
+    // 1. Handle Excel Serial Dates (Numbers)
     if (!isNaN(str) && typeof str !== 'boolean') {
         return new Date((parseFloat(str) - 25569) * 86400 * 1000);
     }
 
-    if (str.includes('/')) {
-        let parts = str.split('/');
-        if (parts.length === 3) {
-            let month = parts[0].padStart(2, '0'); 
-            let day = parts[1].padStart(2, '0');
+    // 2. Handle DD/MM/YYYY or DD-MM-YYYY
+    let parts = str.includes('/') ? str.split('/') : str.split('-');
+    
+    if (parts.length === 3) {
+        // If year is first (YYYY-MM-DD)
+        if (parts[0].length === 4) {
+            let year = parts[0];
+            let month = parts[1].padStart(2, '0');
+            let day = parts[2].padStart(2, '0');
+            let strictDate = new Date(`${year}-${month}-${day}T00:00:00`);
+            if (!isNaN(strictDate.getTime())) return strictDate;
+        } 
+        // Normal Indian Format (DD/MM/YYYY)
+        else {
+            let day = parts[0].padStart(2, '0');
+            let month = parts[1].padStart(2, '0');
             let year = parts[2];
+            if (year.length === 2) year = '20' + year; // Converts '25' to '2025'
             
-            if (year.length === 4) {
-                let strictDate = new Date(`${year}-${month}-${day}T00:00:00`);
-                if (!isNaN(strictDate.getTime())) return strictDate;
-            }
+            let strictDate = new Date(`${year}-${month}-${day}T00:00:00`);
+            if (!isNaN(strictDate.getTime())) return strictDate;
         }
     }
     
+    // 3. Fallback
     let fallback = new Date(str);
     return isNaN(fallback.getTime()) ? null : fallback;
 }
@@ -394,7 +407,8 @@ function drawTrendChart(data) {
         }
 
         if (row._isRValid && status.includes('reconnected')) {
-            let recDate = parseDateString(safeGet(row, 'reconnection date'));
+            // Added typo fallback here just in case!
+            let recDate = parseDateString(safeGet(row, 'Reconnection date') || safeGet(row, 'Reconnecion date'));
             if (recDate) {
                 const recMonth = recDate.toLocaleString('default', { month: 'short', year: 'numeric' });
                 if (!monthData[recMonth]) monthData[recMonth] = { reconnected: 0, disconnected: 0 };
@@ -416,7 +430,23 @@ function drawTrendChart(data) {
                 { label: 'Reconnections', data: recLine, borderColor: '#0284c7', backgroundColor: '#0284c7', tension: 0.3, borderWidth: 3 }
             ]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { datalabels: { align: 'top', font: { weight: 'bold' } } } }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { 
+                datalabels: { 
+                    font: { weight: 'bold' },
+                    // NEW: Clean up overlapping labels!
+                    display: function(context) { 
+                        return context.dataset.data[context.dataIndex] > 0; // Hides the annoying 0s
+                    },
+                    align: function(context) {
+                        // Yellow on top, Blue on bottom so they never overlap
+                        return context.datasetIndex === 0 ? 'top' : 'bottom'; 
+                    }
+                } 
+            } 
+        }
     });
 }
 
@@ -1017,3 +1047,4 @@ async function exportBoxData(type, format) {
         doc.save(`RCDC_${type}_RawData_${new Date().toISOString().slice(0,10)}.pdf`);
     }
 }
+
