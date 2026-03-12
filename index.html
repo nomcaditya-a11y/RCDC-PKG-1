@@ -76,31 +76,31 @@
 
       <section class="kpi-grid">
     
-        <div class="card kpi-card border-blue" onclick="downloadKPIData('total')" title="Click to download CSV" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
+        <div class="card kpi-card border-blue" onclick="downloadKPIData('total')" title="Click to download Excel" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
             <p class="kpi-title" style="white-space: nowrap;">Total Disconnection</p>
             <h3 id="kpi-total" class="kpi-value">0</h3>
             <div class="kpi-sub-stats" id="sub-total" style="white-space: nowrap;"></div>
         </div>
 
-        <div class="card kpi-card border-green" onclick="downloadKPIData('reconnected')" title="Click to download CSV" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
+        <div class="card kpi-card border-green" onclick="downloadKPIData('reconnected')" title="Click to download Excel" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
             <p class="kpi-title" style="white-space: nowrap;">Reconnected</p>
             <h3 id="kpi-reconnected" class="kpi-value text-green">0</h3>
             <div class="kpi-sub-stats" id="sub-recon" style="white-space: nowrap;"></div>
         </div>
 
-        <div class="card kpi-card border-red" onclick="downloadKPIData('disconnected')" title="Click to download CSV" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
+        <div class="card kpi-card border-red" onclick="downloadKPIData('disconnected')" title="Click to download Excel" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
             <p class="kpi-title" style="white-space: nowrap;">Still Disconnected</p>
             <h3 id="kpi-disconnected" class="kpi-value text-red">0</h3>
             <div class="kpi-sub-stats" id="sub-disc" style="white-space: nowrap;"></div>
         </div>
 
-        <div class="card kpi-card" onclick="downloadKPIData('lrcf')" title="Click to download CSV" style="display: none !important; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px; border-top: 4px solid #8b5cf6;">
+        <div class="card kpi-card" onclick="downloadKPIData('lrcf')" title="Click to download Excel" style="display: none !important; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px; border-top: 4px solid #8b5cf6;">
             <p class="kpi-title" style="white-space: nowrap;">LRCF Done</p>
             <h3 id="kpi-lrcf" class="kpi-value" style="color: #8b5cf6;">0</h3>
             <div class="kpi-sub-stats" id="sub-lrcf" style="white-space: nowrap;"></div>
         </div>
 
-        <div class="card kpi-card border-yellow" onclick="downloadKPIData('pending')" title="Click to download CSV" style="display: none !important; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
+        <div class="card kpi-card border-yellow" onclick="downloadKPIData('pending')" title="Click to download Excel" style="display: none !important; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
             <p class="kpi-title" style="white-space: nowrap;">Pending for Reconnection</p>
             <h3 id="kpi-pending" class="kpi-value text-yellow">0</h3>
             <div class="kpi-sub-stats" id="sub-pend" style="white-space: nowrap;"></div>
@@ -125,7 +125,7 @@
                 </div>
             </div>
         </div>
-        <div class="card kpi-card" onclick="downloadKPIData('sat')" title="Click to download SAT Excel data" style="display: flex; flex-direction: column; justify-content: center; border-top: 4px solid #14b8a6; padding: 15px; grid-column: 1 / -1; cursor: pointer; transition: 0.2s;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.8)'" onmouseout="this.style.backgroundColor='var(--glass-bg-light)'">
+        <div class="card kpi-card" onclick="downloadKPIData('sat')" title="Click to download SAT Excel data" style="display: flex; flex-direction: column; justify-content: center; border-top: 4px solid #14b8a6; padding: 15px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.8)'" onmouseout="this.style.backgroundColor='var(--glass-bg-light)'">
             <h3 style="text-align: center; font-size: 0.9rem; color: #475569; letter-spacing: 1px; margin-bottom: 15px; text-transform: uppercase;">SAT Meters Overview 📥</h3>
             
             <div style="display: flex; justify-content: space-around; align-items: flex-start; text-align: center; width: 100%; flex-wrap: wrap; gap: 10px;">
