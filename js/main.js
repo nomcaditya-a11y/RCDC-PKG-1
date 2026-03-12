@@ -6,6 +6,7 @@ Chart.register(ChartDataLabels);
 // --- GLOBAL STATE ---
 let rawData = [];
 let todayExportData = { disc: [], req: [] };
+let satTotal = [], satRecon = [], satDisc = []; // SAT Arrays
 let filteredData = [];
 let chartInstances = {}; 
 let mapInstance = null;
@@ -13,7 +14,7 @@ let markerGroup = null;
 let neighborGroup = null;
 
 let currentMapZone = "ALL";
-let currentMapAging = "Above 3 Months"; // FIX: Default is now Above 3 Months
+let currentMapAging = "Above 3 Months"; 
 let currentMapComm = "NonComm"; 
 
 // --- INITIALIZATION ---
@@ -32,7 +33,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('connection-status').innerHTML = `🟢 Live: ${rawData.length} records`;
         
         populateGlobalFiltersInitial();
-        
         applyGlobalFilters(); 
 
         document.getElementById('filter-region').addEventListener('change', syncDependentFilters);
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('connection-status').style.color = "#ef4444";
     }
 
-    setInterval(refreshData, 300000); // Auto-refresh data every 5 minutes (300,000 ms)
+    setInterval(refreshData, 300000); // Auto-refresh data every 5 minutes
 });
 
 // --- HELPER FUNCTIONS ---
@@ -139,35 +139,27 @@ function populateGlobalFiltersInitial() {
 
 // --- STRICT MM/DD/YYYY DATE PARSER ---
 function parseDateString(dateStr) {
-    // 1. Instantly reject empties or Excel errors like #N/A
     if (!dateStr || dateStr === '#N/A' || dateStr.toString().trim() === '') return null;
+    let str = dateStr.toString().trim().split(' ')[0];
     
-  let str = dateStr.toString().trim().split(' ')[0];
-    
-    // 2. Handle pure numbers (Excel Serial Dates, just in case)
     if (!isNaN(str) && typeof str !== 'boolean') {
         return new Date((parseFloat(str) - 25569) * 86400 * 1000);
     }
 
-    // 3. STRICT MM/DD/YYYY PARSING (Fixes browser timezone/region guessing)
     if (str.includes('/')) {
         let parts = str.split('/');
         if (parts.length === 3) {
-            // Force 2-digit formats (e.g., '2' becomes '02')
             let month = parts[0].padStart(2, '0'); 
             let day = parts[1].padStart(2, '0');
             let year = parts[2];
             
-            // If the year is 4 digits, format it as YYYY-MM-DD so JS universally accepts it
             if (year.length === 4) {
-                // T00:00:00 forces it to calculate at exactly midnight local time
                 let strictDate = new Date(`${year}-${month}-${day}T00:00:00`);
                 if (!isNaN(strictDate.getTime())) return strictDate;
             }
         }
     }
     
-    // 4. Fallback for any other valid formats (like YYYY-MM-DD)
     let fallback = new Date(str);
     return isNaN(fallback.getTime()) ? null : fallback;
 }
@@ -178,9 +170,6 @@ function isToday(dateObj) {
     return dateObj.getDate() === today.getDate() && dateObj.getMonth() === today.getMonth() && dateObj.getFullYear() === today.getFullYear();
 }
 
-// --- DUAL-DATE SMART FILTER LOGIC ---
-// --- DUAL-DATE SMART FILTER LOGIC (CUMULATIVE BACKLOG) ---
-// --- SMART HYBRID FILTER LOGIC ---
 // --- SMART HYBRID FILTER LOGIC ---
 function applyGlobalFilters() {
     const region = document.getElementById('filter-region').value;
@@ -202,10 +191,8 @@ function applyGlobalFilters() {
         if (zone !== "ALL" && safeGet(row, 'Zone/DC Name') !== zone) return false;
 
         const dDate = parseDateString(safeGet(row, 'disc. date'));
-        // FIX: Look for BOTH spellings so it works no matter what!
         const rDate = parseDateString(safeGet(row, 'Reconnection date') || safeGet(row, 'Reconnecion date'));
         
-        // Convert to secure timestamps for math
         const dTime = dDate ? dDate.getTime() : null;
         const rTime = rDate ? rDate.getTime() : null;
 
@@ -231,6 +218,7 @@ function applyGlobalFilters() {
     currentMapComm = "NonComm"; 
     renderDashboard();
 }
+
 function resetGlobalFilters() {
     document.querySelectorAll('.filter-grid select').forEach(s => s.value = "ALL");
     document.querySelectorAll('input[type="date"]').forEach(i => i.value = "");
@@ -260,14 +248,11 @@ function getMediumCounts(data) {
     return {rf, cell};
 }
 
-// --- KPIs WITH RF/CELL FOR ALL ---
-// --- HYBRID KPIs ---
-// --- HYBRID KPIs ---
-// --- HYBRID KPIs WITH TODAY'S ACTIVITY LOGIC ---
-// --- HYBRID KPIs WITH LRCF & TODAY'S ACTIVITY LOGIC ---
+// --- HYBRID KPIs WITH LRCF, TODAY'S ACTIVITY & SAT LOGIC ---
 function updateKPIs(data) {
     let totalDisc = [], recon = [], disc = [], pend = [], lrcf = [];
     let todayDisc = [], todayReq = []; 
+    satTotal = []; satRecon = []; satDisc = []; // Reset SAT Arrays
 
     const startVal = document.getElementById('filter-start').value;
     const endVal = document.getElementById('filter-end').value;
@@ -295,15 +280,19 @@ function updateKPIs(data) {
         if (r._isBacklog) {
             if (status.includes('disconnected')) disc.push(r);
             else if (status.includes('pending')) pend.push(r);
-            else if (status.includes('lrcf')) lrcf.push(r); // LRCF logic added
+            else if (status.includes('lrcf')) lrcf.push(r);
         }
 
-        // --- TODAY LOGIC ---
-        if(isToday(dDate)) {
-            todayDisc.push(r);
-        }
-        if(isToday(rDate)) {
-            todayReq.push(r); 
+        // TODAY LOGIC
+        if(isToday(dDate)) todayDisc.push(r);
+        if(isToday(rDate)) todayReq.push(r); 
+
+        // SAT LOGIC (New)
+        let satValue = (safeGet(r, 'sat meters') || "").toString().trim().toUpperCase();
+        if (satValue === "SAT") {
+            if (r._isDValid) satTotal.push(r);
+            if (r._isRValid && originalStatus.includes('reconnected')) satRecon.push(r);
+            if (r._isBacklog && status.includes('disconnected')) satDisc.push(r);
         }
     });
 
@@ -338,7 +327,6 @@ function updateKPIs(data) {
         if(document.getElementById('sub-pend')) document.getElementById('sub-pend').innerHTML = `Cell: ${pM.cell} | RF: ${pM.rf}`;
     }
 
-    // --- UPDATE DOM FOR "TODAY" CARD ---
     if(document.getElementById('kpi-today-disc')) {
         document.getElementById('kpi-today-disc').innerText = todayDisc.length;
         let tdM = getMediumCounts(todayDisc);
@@ -349,6 +337,38 @@ function updateKPIs(data) {
         document.getElementById('kpi-today-req').innerText = todayReq.length;
         let tReqM = getMediumCounts(todayReq);
         if(document.getElementById('sub-today-req')) document.getElementById('sub-today-req').innerHTML = `Cell: ${tReqM.cell} | RF: ${tReqM.rf}`;
+    }
+
+    // --- UPDATE DOM FOR SAT CARD ---
+    if(document.getElementById('kpi-sat-total')) {
+        document.getElementById('kpi-sat-total').innerText = satTotal.length;
+        let sT = getMediumCounts(satTotal);
+        document.getElementById('sub-sat-total').innerText = `Cell: ${sT.cell} | RF: ${sT.rf}`;
+    }
+
+    if(document.getElementById('kpi-sat-recon')) {
+        document.getElementById('kpi-sat-recon').innerText = satRecon.length;
+        let sR = getMediumCounts(satRecon);
+        document.getElementById('sub-sat-recon').innerText = `Cell: ${sR.cell} | RF: ${sR.rf}`;
+    }
+
+    if(document.getElementById('kpi-sat-disc')) {
+        document.getElementById('kpi-sat-disc').innerText = satDisc.length;
+        
+        let commMeters = satDisc.filter(r => {
+            let c = (safeGet(r, 'Comm Status') || "").toLowerCase();
+            return !c.includes('non') && c.trim() !== "";
+        });
+        let nonCommMeters = satDisc.filter(r => {
+            let c = (safeGet(r, 'Comm Status') || "").toLowerCase();
+            return c.includes('non') || c.trim() === "";
+        });
+
+        let commCounts = getMediumCounts(commMeters);
+        let nonCounts = getMediumCounts(nonCommMeters);
+
+        if(document.getElementById('sub-sat-disc-comm')) document.getElementById('sub-sat-disc-comm').innerText = `C:${commCounts.cell} | R:${commCounts.rf}`;
+        if(document.getElementById('sub-sat-disc-non')) document.getElementById('sub-sat-disc-non').innerText = `C:${nonCounts.cell} | R:${nonCounts.rf}`;
     }
 
     // Save Data to Global Memory
@@ -435,7 +455,7 @@ function drawCommStatusChart(data) {
     });
 }
 
-// --- ACCORDION PROGRESS TABLE (WITH SVG ICONS) ---
+// --- ACCORDION PROGRESS TABLE ---
 function buildProgressTable(data) {
     const groupByCol = getGroupingColumn();
     const childCol = getChildColumn(groupByCol); 
@@ -516,7 +536,7 @@ function getAgingBucket(d) {
     if (diff > 30) return "Above 1 Month"; if (diff > 15) return "Above 15 Days"; return "Below 15 Days"; 
 }
 
-// --- ACCORDION AGING TABLE (Swapped Rows/Cols, Drill-Down & Beautiful Alignment) ---
+// --- ACCORDION AGING TABLE ---
 function buildAgingTable(data) {
     const groupByCol = getGroupingColumn();
     const childCol = getChildColumn(groupByCol);
@@ -526,14 +546,12 @@ function buildAgingTable(data) {
         document.getElementById('dynamic-aging-title').innerText = `Still Disconnected Aging Analysis - ${displayHeader}`;
     }
     
-    // Only look at disconnected meters for Aging
     const discData = data.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
     const buckets = ["Above 3 Months", "Above 2 Months", "Above 1 Month", "Above 15 Days", "Below 15 Days"];
     
     const tableData = {};
     const grandTotals = { "Above 3 Months": 0, "Above 2 Months": 0, "Above 1 Month": 0, "Above 15 Days": 0, "Below 15 Days": 0, "Total": 0 };
 
-    // Grouping the Data
     discData.forEach(row => {
         const key = safeGet(row, groupByCol) || 'Unknown';
         if (!tableData[key]) {
@@ -543,15 +561,11 @@ function buildAgingTable(data) {
         const b = getAgingBucket(parseDateString(safeGet(row, 'disc. date')));
 
         if (buckets.includes(b)) {
-            // Add to Parent
             tableData[key][b]++;
             tableData[key].Total++;
-            
-            // Add to Grand Totals
             grandTotals[b]++;
             grandTotals.Total++;
 
-            // Add to Child (if drill-down exists)
             if (childCol) {
                 const cKey = safeGet(row, childCol) || 'Unknown';
                 if (!tableData[key].children[cKey]) {
@@ -563,7 +577,6 @@ function buildAgingTable(data) {
         }
     });
 
-    // 1. Build Header (Neatly aligned and shortened for clean UI)
     document.querySelector('#aging-table thead').innerHTML = `
         <tr>
             <th>${displayHeader}</th>
@@ -575,12 +588,10 @@ function buildAgingTable(data) {
             <th style="text-align: center;">Total</th>
         </tr>`;
         
-    // 2. Build Body Rows
     const tbody = document.querySelector('#aging-table tbody'); 
     tbody.innerHTML = '';
     
     let rowIndex = 0;
-    // Clean SVG Right Arrow
     const rightArrow = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
 
     for (const [k, v] of Object.entries(tableData)) {
@@ -591,7 +602,6 @@ function buildAgingTable(data) {
             ? `<span class="toggle-icon" style="margin-right:8px; display:inline-flex; align-items:center;">${rightArrow}</span>` 
             : `<span style="display:inline-block; width:24px; margin-right:8px;"></span>`;
         
-        // Parent Row (Numbers centered for better look)
         tbody.innerHTML += `<tr class="parent-row" ${hasChildren ? `style="cursor:pointer;" onclick="toggleParentRow(this, 'aging-child-row-${rowIndex}')"` : ''}>
             <td><div style="display:flex; align-items:center;">${expandIcon}<strong>${k}</strong></div></td>
             <td style="text-align: center;">${v["Above 3 Months"]}</td>
@@ -602,7 +612,6 @@ function buildAgingTable(data) {
             <td style="text-align: center; color: var(--danger);"><strong>${v.Total}</strong></td>
         </tr>`;
 
-        // Child Rows (Hidden by default, aligned cleanly)
         if (hasChildren) {
             for (const [cKey, cVal] of Object.entries(v.children)) {
                 tbody.innerHTML += `<tr class="child-row aging-child-row-${rowIndex}" style="display:none;">
@@ -618,7 +627,6 @@ function buildAgingTable(data) {
         }
     }
 
-    // 3. Build Grand Total Row
     tbody.innerHTML += `<tr style="background: rgba(0,0,0,0.05);">
         <td><strong>Grand Total</strong></td>
         <td style="text-align: center;"><strong>${grandTotals["Above 3 Months"]}</strong></td>
@@ -629,7 +637,8 @@ function buildAgingTable(data) {
         <td style="text-align: center; color: var(--danger);"><strong>${grandTotals.Total}</strong></td>
     </tr>`;
 }
-// --- MAP & NEIGHBORS (WITH JITTER FOR OVERLAPPING PINS) ---
+
+// --- MAP & NEIGHBORS ---
 function updateMapFilters() {
     const mapData = filteredData.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
     
@@ -720,7 +729,6 @@ function updateMapMarkers() {
                             const isComm = !comm.includes('non') && comm.trim() !== "";
                             
                             if (isRecon || isComm) {
-                                // FIX: Jitter for exactly identical coordinates so pins don't overlap completely
                                 if (Math.abs(nLat - lat) < 0.00001 && Math.abs(nLng - lng) < 0.00001) {
                                     nLat += (Math.random() - 0.5) * 0.0002;
                                     nLng += (Math.random() - 0.5) * 0.0002;
@@ -757,8 +765,64 @@ function updateMapMarkers() {
     if (bounds.length > 0) mapInstance.fitBounds(bounds, { padding: [40, 40] });
 }
 
-// --- EXPORT LOGIC ---
-// --- CLICK-TO-DOWNLOAD EXPORT FUNCTIONS (WITH CLEANER & EXCEL) ---
+// --- DATA CLEANER FOR EXPORTS ---
+function cleanDataForExport(dataArray, categoryType) {
+    return dataArray.map(row => {
+        let cleanRow = { ...row };
+        
+        Object.keys(cleanRow).forEach(key => {
+            if (key.startsWith('_')) delete cleanRow[key];
+        });
+
+        if (['disconnected', 'pending', 'lrcf', 'disc', 'sat'].includes(categoryType)) {
+            // Also hide Reconnection date for pure SAT downloads if needed, but since SAT includes reconnections, 
+            // we will only scrub if the user specifically downloads 'disconnected' or 'pending'.
+            if (categoryType !== 'sat') {
+                delete cleanRow['Reconnection date'];
+                delete cleanRow['Reconnecion date']; 
+                delete cleanRow['Reconnection time'];
+                delete cleanRow['Reconnection Remark'];
+                delete cleanRow['RC BY'];
+            }
+        }
+        return cleanRow;
+    });
+}
+
+// --- DECORATIVE EXCEL (.xlsx) GENERATOR ---
+async function triggerExcelDownload(dataArray, filename) {
+    if (!dataArray || dataArray.length === 0) return alert("No data to download!");
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Report Data');
+    const headers = Object.keys(dataArray[0]);
+
+    worksheet.columns = headers.map(h => ({ header: h.toUpperCase(), key: h, width: 20 }));
+    worksheet.addRows(dataArray);
+
+    const headerRow = worksheet.getRow(1);
+    headerRow.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0284C7' } };
+        cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 11 };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+    });
+
+    worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 1) { 
+            row.eachCell((cell) => {
+                cell.border = { top: {style:'thin', color: {argb:'FFCBD5E1'}}, left: {style:'thin', color: {argb:'FFCBD5E1'}}, bottom: {style:'thin', color: {argb:'FFCBD5E1'}}, right: {style:'thin', color: {argb:'FFCBD5E1'}} };
+                cell.alignment = { vertical: 'middle', horizontal: 'left' };
+            });
+        }
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, `RCDC_${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// --- CLICK-TO-DOWNLOAD EXPORT FUNCTIONS ---
 window.downloadKPIData = function(type) {
     if (!filteredData || filteredData.length === 0) return alert("No data available!");
     
@@ -783,12 +847,12 @@ window.downloadKPIData = function(type) {
         else if (type === 'reconnected' && r._isRValid && originalStatus.includes('recon')) exportData.push(r);
         else if (type === 'disconnected' && r._isBacklog && status.includes('disc')) exportData.push(r);
         else if (type === 'pending' && r._isBacklog && status.includes('pending')) exportData.push(r);
-        else if (type === 'lrcf' && r._isBacklog && status.includes('lrcf')) exportData.push(r); // LRCF Export Added
+        else if (type === 'lrcf' && r._isBacklog && status.includes('lrcf')) exportData.push(r);
+        else if (type === 'sat' && (safeGet(r, 'sat meters') || "").toString().trim().toUpperCase() === "SAT") exportData.push(r); // Downloads ALL SAT meters
     });
 
     if (exportData.length === 0) return alert("No meters found for this category!");
     
-    // Clean useless columns and generate decorative Excel!
     let sanitizedData = cleanDataForExport(exportData, type);
     triggerExcelDownload(sanitizedData, filename);
 };
@@ -802,139 +866,9 @@ window.downloadTodayData = function(type) {
 
     let filename = type === 'disc' ? "Today_Disconnected_Meters" : "Today_RC_Requests";
     
-    // Clean useless columns and generate decorative Excel!
     let sanitizedData = cleanDataForExport(dataToDownload, type);
     triggerExcelDownload(sanitizedData, filename);
 };
-
-// --- EXPORT LOGIC (RAW DATA & PDF TABLES) ---
-
-// 1. Full Dashboard Image-to-PDF
-async function exportFullDashboardPDF() {
-    const btn = document.getElementById('export-dash-btn');
-    const originalText = btn.innerText;
-    btn.innerText = "⏳ Generating...";
-    btn.disabled = true;
-
-    try {
-        const { jsPDF } = window.jspdf;
-        const element = document.body; // Captures the whole page
-        
-        // Take a high-res screenshot of the dashboard
-        const canvas = await html2canvas(element, { scale: 1.5, useCORS: true, backgroundColor: "#f1f5f9" });
-        const imgData = canvas.toDataURL('image/jpeg', 0.8);
-        
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
-        let heightLeft = pdfHeight;
-        let position = 0;
-        const pageHeight = pdf.internal.pageSize.getHeight();
-
-        // Add pages if the dashboard is very long
-        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pageHeight;
-        while (heightLeft > 0) {
-            position = heightLeft - pdfHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
-            heightLeft -= pageHeight;
-        }
-        
-        pdf.save(`DCRC_Full_Dashboard_${new Date().toISOString().slice(0,10)}.pdf`);
-    } catch (err) {
-        console.error(err);
-        alert("Error generating full PDF.");
-    } finally {
-        btn.innerText = originalText;
-        btn.disabled = false;
-    }
-}
-
-// 2. Individual Box PDF Tables & CSV
-// --- EXPORT BOX DATA (RAW EXCEL DATA TO STYLED PDF/CSV) ---
-async function exportBoxData(type, format) {
-    // 1. Get the correct raw data based on what chart/table they clicked
-    let exportData = filteredData;
-    
-    // If they click Comm Status or Aging, they only want the currently disconnected meters
-    if(type === 'comm' || type === 'aging') {
-        exportData = filteredData.filter(r => r._isBacklog && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
-    }
-
-    if(!exportData || exportData.length === 0) return alert("No data to export!");
-
-    // 2. Export as CSV (Direct Excel File)
-    if (format === 'csv') {
-        triggerCSVDownload(exportData, `${type}_Raw_Data`);
-    } 
-    // 3. Export as PDF (Styled like an Excel Grid)
-    else if (format === 'pdf') {
-        const { jsPDF } = window.jspdf;
-        // Use Landscape orientation to fit all the Google Sheet columns
-        const doc = new jsPDF({ orientation: 'landscape' });
-
-        // Extract column headers directly from your raw data (ignoring hidden code flags)
-        const headers = Object.keys(exportData[0]).filter(k => !k.startsWith('_'));
-
-        // Extract every single row of data
-        const rows = exportData.map(row => {
-            return headers.map(k => {
-                let val = row[k];
-                return (val !== null && val !== undefined) ? String(val) : "";
-            });
-        });
-
-        // Add a clean title to the top of the PDF page
-        doc.setFontSize(14);
-        doc.text(`Genus Power RCDC Raw Data - ${type.toUpperCase()}`, 14, 15);
-
-        // Generate the beautiful, Excel-style PDF Table
-        doc.autoTable({
-            head: [headers],
-            body: rows,
-            startY: 22,
-            theme: 'grid', // Creates Excel-like borders
-            styles: { 
-                fontSize: 7, // Small font so all columns fit
-                cellPadding: 2,
-                font: 'helvetica',
-                overflow: 'linebreak'
-            },
-            headStyles: { 
-                fillColor: [2, 132, 199], // Genus Brand Blue Headers
-                textColor: 255, 
-                fontStyle: 'bold',
-                halign: 'center'
-            },
-            alternateRowStyles: { 
-                fillColor: [241, 245, 249] // Subtle grey alternating rows for easy reading
-            },
-            margin: { top: 20, left: 10, right: 10 }
-        });
-
-        // Save the file
-        doc.save(`RCDC_${type}_RawData_${new Date().toISOString().slice(0,10)}.pdf`);
-    }
-}
-
-function triggerCSVDownload(dataArray, filename) {
-    if (!dataArray || dataArray.length === 0) return alert("No data to download!");
-    const blob = new Blob([Papa.unparse(dataArray)], { type: 'text/csv' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `RCDC_${filename}_${new Date().toISOString().slice(0,10)}.csv`;
-    link.click();
-}
-
-function triggerCSVDownload(dataArray, filename) {
-    const blob = new Blob([Papa.unparse(dataArray)], { type: 'text/csv' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `RCDC_${filename}_${new Date().toISOString().slice(0,10)}.csv`;
-    link.click();
-}
 
 // --- PACKAGE SWITCHER & THEME ---
 async function switchPackage(pkgType) {
@@ -978,89 +912,108 @@ function toggleTheme() {
     }
 }
 
+// 1. Full Dashboard Image-to-PDF
+async function exportFullDashboardPDF() {
+    const btn = document.getElementById('export-dash-btn');
+    const originalText = btn.innerText;
+    btn.innerText = "⏳ Generating...";
+    btn.disabled = true;
 
+    try {
+        const { jsPDF } = window.jspdf;
+        const element = document.body;
+        
+        const canvas = await html2canvas(element, { scale: 1.5, useCORS: true, backgroundColor: "#f1f5f9" });
+        const imgData = canvas.toDataURL('image/jpeg', 0.8);
+        
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        
+        let heightLeft = pdfHeight;
+        let position = 0;
+        const pageHeight = pdf.internal.pageSize.getHeight();
 
-// --- BULLETPROOF 'TODAY' CHECKER ---
-function isToday(someDate) {
-    if (!someDate || isNaN(someDate.getTime())) return false;
-    const today = new Date();
-    return someDate.getDate() === today.getDate() &&
-           someDate.getMonth() === today.getMonth() &&
-           someDate.getFullYear() === today.getFullYear();
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+        while (heightLeft > 0) {
+            position = heightLeft - pdfHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+            heightLeft -= pageHeight;
+        }
+        
+        pdf.save(`DCRC_Full_Dashboard_${new Date().toISOString().slice(0,10)}.pdf`);
+    } catch (err) {
+        console.error(err);
+        alert("Error generating full PDF.");
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
 }
 
+// 2. Individual Box PDF Tables & CSV (Legacy Raw Download)
+function triggerCSVDownloadFallback(dataArray, filename) {
+    if (!dataArray || dataArray.length === 0) return alert("No data to download!");
+    const blob = new Blob([Papa.unparse(dataArray)], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `RCDC_${filename}_${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
+}
 
-// --- CLICK-TO-DOWNLOAD TODAY'S DATA ---
-window.downloadTodayData = function(type) {
-    let dataToDownload = todayExportData[type];
+async function exportBoxData(type, format) {
+    let exportData = filteredData;
     
-    if (!dataToDownload || dataToDownload.length === 0) {
-        return alert("No meters found in this category for today!");
+    if(type === 'comm' || type === 'aging') {
+        exportData = filteredData.filter(r => r._isBacklog && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
     }
 
-    let filename = "";
-    if (type === 'disc') filename = "Today_Disconnected_Meters";
-    if (type === 'req') filename = "Today_RC_Requests";
-    if (type === 'recon') filename = "Today_Reconnected_Done";
-    
-    // Trigger the existing CSV download function
-    triggerCSVDownload(dataToDownload, filename);
-};
+    if(!exportData || exportData.length === 0) return alert("No data to export!");
 
+    if (format === 'csv') {
+        triggerCSVDownloadFallback(exportData, `${type}_Raw_Data`);
+    } 
+    else if (format === 'pdf') {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape' });
 
-// --- DATA CLEANER FOR EXPORTS ---
-function cleanDataForExport(dataArray, categoryType) {
-    return dataArray.map(row => {
-        let cleanRow = { ...row };
-        
-        // Delete internal system columns (starting with _)
-        Object.keys(cleanRow).forEach(key => {
-            if (key.startsWith('_')) delete cleanRow[key];
+        const headers = Object.keys(exportData[0]).filter(k => !k.startsWith('_'));
+
+        const rows = exportData.map(row => {
+            return headers.map(k => {
+                let val = row[k];
+                return (val !== null && val !== undefined) ? String(val) : "";
+            });
         });
 
-        // Delete Reconnection details if the meter is not reconnected
-        if (['disconnected', 'pending', 'lrcf', 'disc'].includes(categoryType)) {
-            delete cleanRow['Reconnection date'];
-            delete cleanRow['Reconnecion date']; 
-            delete cleanRow['Reconnection time'];
-            delete cleanRow['Reconnection Remark'];
-            delete cleanRow['RC BY'];
-        }
-        return cleanRow;
-    });
+        doc.setFontSize(14);
+        doc.text(`Genus Power RCDC Raw Data - ${type.toUpperCase()}`, 14, 15);
+
+        doc.autoTable({
+            head: [headers],
+            body: rows,
+            startY: 22,
+            theme: 'grid', 
+            styles: { 
+                fontSize: 7, 
+                cellPadding: 2,
+                font: 'helvetica',
+                overflow: 'linebreak'
+            },
+            headStyles: { 
+                fillColor: [2, 132, 199], 
+                textColor: 255, 
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            alternateRowStyles: { 
+                fillColor: [241, 245, 249] 
+            },
+            margin: { top: 20, left: 10, right: 10 }
+        });
+
+        doc.save(`RCDC_${type}_RawData_${new Date().toISOString().slice(0,10)}.pdf`);
+    }
 }
-
-// --- DECORATIVE EXCEL (.xlsx) GENERATOR ---
-async function triggerExcelDownload(dataArray, filename) {
-    if (!dataArray || dataArray.length === 0) return alert("No data to download!");
-
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Report Data');
-    const headers = Object.keys(dataArray[0]);
-
-    worksheet.columns = headers.map(h => ({ header: h.toUpperCase(), key: h, width: 20 }));
-    worksheet.addRows(dataArray);
-
-    const headerRow = worksheet.getRow(1);
-    headerRow.eachCell((cell) => {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0284C7' } };
-        cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 11 };
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-    });
-
-    worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber > 1) { 
-            row.eachCell((cell) => {
-                cell.border = { top: {style:'thin', color: {argb:'FFCBD5E1'}}, left: {style:'thin', color: {argb:'FFCBD5E1'}}, bottom: {style:'thin', color: {argb:'FFCBD5E1'}}, right: {style:'thin', color: {argb:'FFCBD5E1'}} };
-                cell.alignment = { vertical: 'middle', horizontal: 'left' };
-            });
-        }
-    });
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(blob, `RCDC_${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
-}
-
-
