@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Genus Power RCDC Dashboard</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="icon" type="image/png" href="https://genuspower.com/wp-content/uploads/2022/07/genus-favicon.png" sizes="192x192" />
-<link rel="apple-touch-icon" href="https://genuspower.com/wp-content/uploads/2022/07/genus-favicon.png" />    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://genuspower.com/wp-content/uploads/2022/07/genus-favicon.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="https://genuspower.com/wp-content/uploads/2022/07/genus-favicon.png" />    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -75,92 +76,93 @@
 
       <section class="kpi-grid">
     
-    <div class="card kpi-card border-blue" onclick="downloadKPIData('total')" title="Click to download CSV" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
-        <p class="kpi-title" style="white-space: nowrap;">Total Disconnection</p>
-        <h3 id="kpi-total" class="kpi-value">0</h3>
-        <div class="kpi-sub-stats" id="sub-total" style="white-space: nowrap;"></div>
-    </div>
+        <div class="card kpi-card border-blue" onclick="downloadKPIData('total')" title="Click to download CSV" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
+            <p class="kpi-title" style="white-space: nowrap;">Total Disconnection</p>
+            <h3 id="kpi-total" class="kpi-value">0</h3>
+            <div class="kpi-sub-stats" id="sub-total" style="white-space: nowrap;"></div>
+        </div>
 
-    <div class="card kpi-card border-green" onclick="downloadKPIData('reconnected')" title="Click to download CSV" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
-        <p class="kpi-title" style="white-space: nowrap;">Reconnected</p>
-        <h3 id="kpi-reconnected" class="kpi-value text-green">0</h3>
-        <div class="kpi-sub-stats" id="sub-recon" style="white-space: nowrap;"></div>
-    </div>
+        <div class="card kpi-card border-green" onclick="downloadKPIData('reconnected')" title="Click to download CSV" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
+            <p class="kpi-title" style="white-space: nowrap;">Reconnected</p>
+            <h3 id="kpi-reconnected" class="kpi-value text-green">0</h3>
+            <div class="kpi-sub-stats" id="sub-recon" style="white-space: nowrap;"></div>
+        </div>
 
-    <div class="card kpi-card border-red" onclick="downloadKPIData('disconnected')" title="Click to download CSV" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
-        <p class="kpi-title" style="white-space: nowrap;">Still Disconnected</p>
-        <h3 id="kpi-disconnected" class="kpi-value text-red">0</h3>
-        <div class="kpi-sub-stats" id="sub-disc" style="white-space: nowrap;"></div>
-    </div>
+        <div class="card kpi-card border-red" onclick="downloadKPIData('disconnected')" title="Click to download CSV" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
+            <p class="kpi-title" style="white-space: nowrap;">Still Disconnected</p>
+            <h3 id="kpi-disconnected" class="kpi-value text-red">0</h3>
+            <div class="kpi-sub-stats" id="sub-disc" style="white-space: nowrap;"></div>
+        </div>
 
-    <div style="display: none !important; class="card kpi-card" onclick="downloadKPIData('lrcf')" title="Click to download CSV" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px; border-top: 4px solid #8b5cf6;">
-        <p class="kpi-title" style="white-space: nowrap;">LRCF Done</p>
-        <h3 id="kpi-lrcf" class="kpi-value" style="color: #8b5cf6;">0</h3>
-        <div class="kpi-sub-stats" id="sub-lrcf" style="white-space: nowrap;"></div>
-    </div>
+        <div class="card kpi-card" onclick="downloadKPIData('lrcf')" title="Click to download CSV" style="display: none !important; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px; border-top: 4px solid #8b5cf6;">
+            <p class="kpi-title" style="white-space: nowrap;">LRCF Done</p>
+            <h3 id="kpi-lrcf" class="kpi-value" style="color: #8b5cf6;">0</h3>
+            <div class="kpi-sub-stats" id="sub-lrcf" style="white-space: nowrap;"></div>
+        </div>
 
-    <div style="display: none !important; class="card kpi-card border-yellow" onclick="downloadKPIData('pending')" title="Click to download CSV" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
-        <p class="kpi-title" style="white-space: nowrap;">Pending for Reconnection</p>
-        <h3 id="kpi-pending" class="kpi-value text-yellow">0</h3>
-        <div class="kpi-sub-stats" id="sub-pend" style="white-space: nowrap;"></div>
-    </div>
+        <div class="card kpi-card border-yellow" onclick="downloadKPIData('pending')" title="Click to download CSV" style="display: none !important; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 10px;">
+            <p class="kpi-title" style="white-space: nowrap;">Pending for Reconnection</p>
+            <h3 id="kpi-pending" class="kpi-value text-yellow">0</h3>
+            <div class="kpi-sub-stats" id="sub-pend" style="white-space: nowrap;"></div>
+        </div>
 
-    <div style="display: none !important; class="card kpi-card" style="display: flex; flex-direction: column; justify-content: center; border-top: 4px solid #6366f1; padding: 15px;">
-        <h3 style="text-align: center; font-size: 0.9rem; color: #475569; letter-spacing: 1px; margin-bottom: 15px; text-transform: uppercase;">TODAY'S ACTIVITY</h3>
-    <div class="card kpi-card" onclick="downloadKPIData('sat')" title="Click to download SAT Excel data" style="display: flex; flex-direction: column; justify-content: center; border-top: 4px solid #14b8a6; padding: 15px; grid-column: 1 / -1; cursor: pointer; transition: 0.2s;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.8)'" onmouseout="this.style.backgroundColor='var(--glass-bg-light)'">
-        <h3 style="text-align: center; font-size: 0.9rem; color: #475569; letter-spacing: 1px; margin-bottom: 15px; text-transform: uppercase;">SAT Meters Overview 📥</h3>
-        
-        <div style="display: flex; justify-content: space-around; align-items: flex-start; text-align: center; width: 100%; flex-wrap: wrap; gap: 10px;">
-            
-            <div style="flex: 1; min-width: 120px; margin-bottom: 10px;">
-                <h4 style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">TOTAL DISC.</h4>
-                <p id="kpi-sat-total" style="font-size: 1.8rem; font-weight: bold; color: #0284c7; margin: 5px 0;">0</p>
-                <div id="sub-sat-total" style="font-size: 0.7rem; color: #64748b; background: rgba(255,255,255,0.6); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--glass-border); display: inline-block;">Cell: 0 | RF: 0</div>
-            </div>
-            
-            <div style="width: 1px; background-color: #e2e8f0; min-height: 50px; display: block;"></div>
-            
-            <div style="flex: 1; min-width: 120px; margin-bottom: 10px;">
-                <h4 style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">RECONNECTED</h4>
-                <p id="kpi-sat-recon" style="font-size: 1.8rem; font-weight: bold; color: #16a34a; margin: 5px 0;">0</p>
-                <div id="sub-sat-recon" style="font-size: 0.7rem; color: #64748b; background: rgba(255,255,255,0.6); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--glass-border); display: inline-block;">Cell: 0 | RF: 0</div>
-            </div>
-
-            <div style="width: 1px; background-color: #e2e8f0; min-height: 50px; display: block;"></div>
-
-            <div style="flex: 1.5; min-width: 220px; margin-bottom: 10px;">
-                <h4 style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">STILL DISC.</h4>
-                <p id="kpi-sat-disc" style="font-size: 1.8rem; font-weight: bold; color: #dc2626; margin: 5px 0;">0</p>
-                <div style="display: flex; gap: 5px; justify-content: center; font-size: 0.65rem; color: #64748b; flex-wrap: wrap;">
-                    <div style="background: rgba(255,255,255,0.6); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--glass-border);">
-                        <b style="color: #16a34a;">Comm:</b> <span id="sub-sat-disc-comm">C:0 | R:0</span>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.6); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--glass-border);">
-                        <b style="color: #ea580c;">NonComm:</b> <span id="sub-sat-disc-non">C:0 | R:0</span>
-                    </div>
+        <div class="card kpi-card" style="display: none !important; flex-direction: column; justify-content: center; border-top: 4px solid #6366f1; padding: 15px;">
+            <h3 style="text-align: center; font-size: 0.9rem; color: #475569; letter-spacing: 1px; margin-bottom: 15px; text-transform: uppercase;">TODAY'S ACTIVITY</h3>
+            <div style="display: flex; justify-content: space-around; align-items: center; text-align: center; width: 100%;">
+                
+                <div onclick="downloadTodayData('disc')" style="cursor: pointer; padding: 8px; border-radius: 8px; transition: 0.2s; width: 50%;" title="Click to download Excel data" onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor='transparent'">
+                    <h4 style="font-size: 0.7rem; color: #94a3b8; font-weight: 700; white-space: nowrap;">DISC. 📥</h4>
+                    <p id="kpi-today-disc" style="font-size: 1.8rem; font-weight: bold; color: #f97316; margin: 5px 0;">0</p>
+                    <div id="sub-today-disc" style="font-size: 0.7rem; color: #64748b; white-space: nowrap;">Cell: 0 | RF: 0</div>
+                </div>
+                
+                <div style="width: 1px; background-color: #e2e8f0; height: 50px;"></div>
+                
+                <div onclick="downloadTodayData('req')" style="cursor: pointer; padding: 8px; border-radius: 8px; transition: 0.2s; width: 50%;" title="Click to download Excel data" onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor='transparent'">
+                    <h4 style="font-size: 0.7rem; color: #94a3b8; font-weight: 700; white-space: nowrap;">RC incl. backlogs📥</h4>
+                    <p id="kpi-today-req" style="font-size: 1.8rem; font-weight: bold; color: #0ea5e9; margin: 5px 0;">0</p>
+                    <div id="sub-today-req" style="font-size: 0.7rem; color: #64748b; white-space: nowrap;">Cell: 0 | RF: 0</div>
                 </div>
             </div>
+        </div>
+        <div class="card kpi-card" onclick="downloadKPIData('sat')" title="Click to download SAT Excel data" style="display: flex; flex-direction: column; justify-content: center; border-top: 4px solid #14b8a6; padding: 15px; grid-column: 1 / -1; cursor: pointer; transition: 0.2s;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.8)'" onmouseout="this.style.backgroundColor='var(--glass-bg-light)'">
+            <h3 style="text-align: center; font-size: 0.9rem; color: #475569; letter-spacing: 1px; margin-bottom: 15px; text-transform: uppercase;">SAT Meters Overview 📥</h3>
+            
+            <div style="display: flex; justify-content: space-around; align-items: flex-start; text-align: center; width: 100%; flex-wrap: wrap; gap: 10px;">
+                
+                <div style="flex: 1; min-width: 120px; margin-bottom: 10px;">
+                    <h4 style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">TOTAL DISC.</h4>
+                    <p id="kpi-sat-total" style="font-size: 1.8rem; font-weight: bold; color: #0284c7; margin: 5px 0;">0</p>
+                    <div id="sub-sat-total" style="font-size: 0.7rem; color: #64748b; background: rgba(255,255,255,0.6); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--glass-border); display: inline-block;">Cell: 0 | RF: 0</div>
+                </div>
+                
+                <div style="width: 1px; background-color: #e2e8f0; min-height: 50px; display: block;"></div>
+                
+                <div style="flex: 1; min-width: 120px; margin-bottom: 10px;">
+                    <h4 style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">RECONNECTED</h4>
+                    <p id="kpi-sat-recon" style="font-size: 1.8rem; font-weight: bold; color: #16a34a; margin: 5px 0;">0</p>
+                    <div id="sub-sat-recon" style="font-size: 0.7rem; color: #64748b; background: rgba(255,255,255,0.6); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--glass-border); display: inline-block;">Cell: 0 | RF: 0</div>
+                </div>
 
-        </div>
-    </div>
-        <div style="display: flex; justify-content: space-around; align-items: center; text-align: center; width: 100%;">
-            
-            <div onclick="downloadTodayData('disc')" style="cursor: pointer; padding: 8px; border-radius: 8px; transition: 0.2s; width: 50%;" title="Click to download Excel data" onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor='transparent'">
-                <h4 style="font-size: 0.7rem; color: #94a3b8; font-weight: 700; white-space: nowrap;">DISC. 📥</h4>
-                <p id="kpi-today-disc" style="font-size: 1.8rem; font-weight: bold; color: #f97316; margin: 5px 0;">0</p>
-                <div id="sub-today-disc" style="font-size: 0.7rem; color: #64748b; white-space: nowrap;">Cell: 0 | RF: 0</div>
+                <div style="width: 1px; background-color: #e2e8f0; min-height: 50px; display: block;"></div>
+
+                <div style="flex: 1.5; min-width: 220px; margin-bottom: 10px;">
+                    <h4 style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">STILL DISC.</h4>
+                    <p id="kpi-sat-disc" style="font-size: 1.8rem; font-weight: bold; color: #dc2626; margin: 5px 0;">0</p>
+                    <div style="display: flex; gap: 5px; justify-content: center; font-size: 0.65rem; color: #64748b; flex-wrap: wrap;">
+                        <div style="background: rgba(255,255,255,0.6); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                            <b style="color: #16a34a;">Comm:</b> <span id="sub-sat-disc-comm">C:0 | R:0</span>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.6); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                            <b style="color: #ea580c;">NonComm:</b> <span id="sub-sat-disc-non">C:0 | R:0</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
-            
-            <div style="width: 1px; background-color: #e2e8f0; height: 50px;"></div>
-            
-            <div onclick="downloadTodayData('req')" style="cursor: pointer; padding: 8px; border-radius: 8px; transition: 0.2s; width: 50%;" title="Click to download Excel data" onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor='transparent'">
-                <h4 style="font-size: 0.7rem; color: #94a3b8; font-weight: 700; white-space: nowrap;">RC incl. backlogs📥</h4>
-                <p id="kpi-today-req" style="font-size: 1.8rem; font-weight: bold; color: #0ea5e9; margin: 5px 0;">0</p>
-                <div id="sub-today-req" style="font-size: 0.7rem; color: #64748b; white-space: nowrap;">Cell: 0 | RF: 0</div>
-            </div>
         </div>
-    </div>
-</section>
+    </section>
+
         <section class="box" id="export-trend">
             <div class="box-header">
                 <div class="section-title title-yellow">Disconnection vs Reconnection Trends</div>
@@ -258,7 +260,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
-   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -269,23 +271,3 @@
     <script src="js/main.js"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
