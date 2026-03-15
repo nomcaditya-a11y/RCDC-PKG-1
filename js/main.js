@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(themeBtn) themeBtn.innerText = '☀️';
     }
 
-    const data = await fetchMeterData();
+const data = await fetchMeterData('pkg3');
     if (data && data.length > 0) {
         rawData = data;
         filteredData = [...rawData]; 
