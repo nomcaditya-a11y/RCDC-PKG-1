@@ -19,6 +19,30 @@ let currentMapComm = "NonComm";
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async () => {
+    // --- AUTHENTICATION CHECK ---
+    const DASHBOARD_PASSWORD = "HiGenus"; // Change this password to whatever you want!
+    
+    if (sessionStorage.getItem('dashboard_auth') === 'true') {
+        document.getElementById('login-overlay').style.display = 'none';
+    }
+    
+    window.checkAuth = function() {
+        const pwd = document.getElementById('auth-password').value;
+        if (pwd === DASHBOARD_PASSWORD) {
+            sessionStorage.setItem('dashboard_auth', 'true');
+            document.getElementById('login-overlay').style.display = 'none';
+        } else {
+            document.getElementById('auth-error').style.display = 'block';
+        }
+    };
+
+    // Allow pressing "Enter" to log in
+    const authInput = document.getElementById('auth-password');
+    if(authInput) {
+        authInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') checkAuth();
+        });
+    }
     // Check Dark Mode
     if (localStorage.getItem('theme') === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
@@ -568,6 +592,7 @@ function getAgingBucket(d) {
 }
 
 // --- ACCORDION AGING TABLE ---
+// --- ACCORDION AGING TABLE ---
 function buildAgingTable(data) {
     const groupByCol = getGroupingColumn();
     const childCol = getChildColumn(groupByCol);
@@ -577,9 +602,25 @@ function buildAgingTable(data) {
         document.getElementById('dynamic-aging-title').innerText = `Still Disconnected Aging Analysis - ${displayHeader}`;
     }
     
-    const discData = data.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
-    const buckets = ["Above 3 Months", "Above 2 Months", "Above 1 Month", "Above 15 Days", "Below 15 Days"];
+    let discData = data.filter(r => r._isDValid && (safeGet(r, 'Status')||"").toLowerCase().includes('disconnected'));
     
+    // --- NEW: APPLY LOCAL TABLE FILTERS ---
+    const satFilter = document.getElementById('aging-sat-filter') ? document.getElementById('aging-sat-filter').value : "ALL";
+    const commFilter = document.getElementById('aging-comm-filter') ? document.getElementById('aging-comm-filter').value : "ALL";
+
+    if (satFilter === "SAT") {
+        discData = discData.filter(r => (safeGet(r, 'sat meters') || "").toString().trim().toUpperCase() === "SAT");
+    }
+    if (commFilter !== "ALL") {
+        discData = discData.filter(r => {
+            let c = (safeGet(r, 'Comm Status') || "").toLowerCase();
+            if (commFilter === "NonComm") return c.includes('non') || c.trim() === "";
+            if (commFilter === "Comm") return !c.includes('non') && c.trim() !== "";
+            return true;
+        });
+    }
+
+    const buckets = ["Above 3 Months", "Above 2 Months", "Above 1 Month", "Above 15 Days", "Below 15 Days"];
     const tableData = {};
     const grandTotals = { "Above 3 Months": 0, "Above 2 Months": 0, "Above 1 Month": 0, "Above 15 Days": 0, "Below 15 Days": 0, "Total": 0 };
 
