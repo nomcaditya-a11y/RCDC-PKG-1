@@ -15,6 +15,16 @@
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-box">
+            <img src="js/logo.webp" alt="Logo" style="height: 50px; margin-bottom: 20px;">
+            <h2 style="margin-bottom: 10px; color: var(--text-main);">Dashboard Access</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">Please enter the access code to continue.</p>
+            <input type="password" id="auth-password" placeholder="Enter Password" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem;">
+            <button onclick="checkAuth()" class="btn-primary" style="width: 100%; padding: 10px;">Login</button>
+            <p id="auth-error" style="color: red; font-size: 0.8rem; margin-top: 10px; display: none;">Incorrect password.</p>
+        </div>
+    </div>
 
    <header class="top-nav">
         <div class="logo-area">
@@ -217,8 +227,21 @@
             </div>
 
             <div class="box table-box" id="export-aging">
-                <div class="box-header">
+               <div class="box-header" style="flex-wrap: wrap; gap: 10px;">
                     <div class="section-title title-orange" id="dynamic-aging-title">Still Disconnected Aging Analysis</div>
+                    
+                    <div style="display: flex; gap: 10px; align-items: center; flex: 1; justify-content: flex-end;">
+                        <select id="aging-sat-filter" class="table-inline-filter" onchange="buildAgingTable(filteredData)">
+                            <option value="ALL">All Meters</option>
+                            <option value="SAT">SAT Only</option>
+                        </select>
+                        <select id="aging-comm-filter" class="table-inline-filter" onchange="buildAgingTable(filteredData)">
+                            <option value="ALL">All Comm Status</option>
+                            <option value="NonComm">NonComm Only</option>
+                            <option value="Comm">Comm Only</option>
+                        </select>
+                    </div>
+
                     <div class="export-btns">
                         <button onclick="exportBoxData('aging', 'csv')">CSV</button>
                         <button onclick="exportBoxData('aging', 'pdf', 'export-aging')">PDF</button>
