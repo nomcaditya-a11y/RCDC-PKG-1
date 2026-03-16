@@ -20,29 +20,95 @@ let currentMapComm = "NonComm";
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async () => {
     // --- AUTHENTICATION CHECK ---
-    const DASHBOARD_PASSWORD = "HiGenus"; // Change this password to whatever you want!
-    
+   // ==========================================
+    // AUTHENTICATION, REGISTRATION & TIMEOUT
+    // ==========================================
+    let isLoginMode = true;
+    let idleTimer;
+    const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
+    // 1. Check if already logged in for this active session
     if (sessionStorage.getItem('dashboard_auth') === 'true') {
         document.getElementById('login-overlay').style.display = 'none';
+        startIdleTimer(); // Start the 30 min clock
     }
-    
-    window.checkAuth = function() {
-        const pwd = document.getElementById('auth-password').value;
-        if (pwd === DASHBOARD_PASSWORD) {
-            sessionStorage.setItem('dashboard_auth', 'true');
-            document.getElementById('login-overlay').style.display = 'none';
+
+    // 2. Toggle between Login and Create Account
+    window.toggleAuthMode = function() {
+        isLoginMode = !isLoginMode;
+        document.getElementById('auth-title').innerText = isLoginMode ? "Dashboard Login" : "Create Account";
+        document.getElementById('auth-subtitle').innerText = isLoginMode ? "Enter credentials to access the dashboard." : "Set up a local username and password.";
+        document.getElementById('auth-action-btn').innerText = isLoginMode ? "Login" : "Register Account";
+        document.getElementById('auth-toggle-link').innerText = isLoginMode ? "Create a new account" : "Back to Login";
+        document.getElementById('auth-message').style.display = 'none';
+        document.getElementById('auth-user').value = '';
+        document.getElementById('auth-password').value = '';
+    };
+
+    // 3. Handle Submit (Login or Register)
+    window.handleAuth = function() {
+        const user = document.getElementById('auth-user').value.trim();
+        const pass = document.getElementById('auth-password').value.trim();
+        const msgEl = document.getElementById('auth-message');
+
+        if (!user || !pass) {
+            msgEl.style.color = 'red'; msgEl.innerText = "Username and password required."; msgEl.style.display = 'block';
+            return;
+        }
+
+        if (isLoginMode) {
+            // --- LOGIN LOGIC ---
+            const storedPass = localStorage.getItem(`user_${user}`);
+            
+            // Note: I left a master override here (admin / Genus) just in case you ever clear your browser data and get locked out!
+            if ((storedPass && storedPass === pass) || (user === "admin" && pass === "Genus")) {
+                sessionStorage.setItem('dashboard_auth', 'true');
+                document.getElementById('login-overlay').style.display = 'none';
+                msgEl.style.display = 'none';
+                startIdleTimer();
+            } else {
+                msgEl.style.color = 'red'; msgEl.innerText = "Invalid username or password."; msgEl.style.display = 'block';
+            }
         } else {
-            document.getElementById('auth-error').style.display = 'block';
+            // --- REGISTRATION LOGIC ---
+            if (localStorage.getItem(`user_${user}`)) {
+                msgEl.style.color = 'red'; msgEl.innerText = "Username already exists."; msgEl.style.display = 'block';
+            } else {
+                localStorage.setItem(`user_${user}`, pass); // Saves to browser memory
+                msgEl.style.color = 'green'; msgEl.innerText = "Success! Please log in."; msgEl.style.display = 'block';
+                setTimeout(toggleAuthMode, 1500); // Auto-switch to login screen after 1.5 seconds
+            }
         }
     };
 
-    // Allow pressing "Enter" to log in
+    // Allow hitting "Enter" to submit
     const authInput = document.getElementById('auth-password');
-    if(authInput) {
-        authInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') checkAuth();
+    if(authInput) authInput.addEventListener('keypress', e => { if (e.key === 'Enter') handleAuth(); });
+
+    // 4. --- 30 MINUTE IDLE TIMER LOGIC ---
+    function startIdleTimer() {
+        resetTimer();
+        // Listen to mouse movement, clicks, or typing to keep session alive
+        ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
+            window.addEventListener(evt, resetTimer, true);
         });
     }
+
+    function resetTimer() {
+        clearTimeout(idleTimer);
+        if (sessionStorage.getItem('dashboard_auth') === 'true') {
+            idleTimer = setTimeout(logoutUser, IDLE_TIMEOUT_MS);
+        }
+    }
+
+    window.logoutUser = function() {
+        sessionStorage.removeItem('dashboard_auth');
+        document.getElementById('login-overlay').style.display = 'flex';
+        document.getElementById('auth-password').value = '';
+        const msgEl = document.getElementById('auth-message');
+        msgEl.style.color = 'red'; msgEl.innerText = "Session expired due to 30 minutes of inactivity."; msgEl.style.display = 'block';
+        clearTimeout(idleTimer);
+    };
     // Check Dark Mode
     if (localStorage.getItem('theme') === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
