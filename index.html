@@ -15,7 +15,7 @@
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <div id="login-overlay" class="login-overlay">
+  <div id="login-overlay" class="login-overlay">
         <div class="login-box">
             <img src="js/logo.webp" alt="Logo" style="height: 50px; margin-bottom: 20px;">
             <h2 id="auth-title" style="margin-bottom: 10px; color: var(--text-main);">Dashboard Login</h2>
@@ -23,6 +23,8 @@
             
             <input type="text" id="auth-user" placeholder="Username" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem;">
             <input type="password" id="auth-password" placeholder="Password" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem;">
+            
+            <input type="password" id="auth-admin-code" placeholder="Secret Registration Code" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; display: none;">
             
             <button id="auth-action-btn" onclick="handleAuth()" class="btn-primary" style="width: 100%; padding: 10px; margin-bottom: 10px;">Login</button>
             
@@ -47,6 +49,8 @@
             </div>
             <button onclick="refreshData()" class="btn-secondary refresh-btn" title="Refresh Data">🔄 Refresh</button>
             <button id="theme-btn" onclick="toggleTheme()" class="btn-secondary refresh-btn" title="Toggle Dark Mode">🌙</button>
+            
+            <button onclick="logoutUser()" class="btn-secondary refresh-btn" title="Lock Dashboard" style="color: var(--danger); font-weight: bold;">🔒 Logout</button>
             
             <button id="export-dash-btn" onclick="exportFullDashboardPDF()" class="btn-primary" style="height: 38px; padding: 0 15px; display: flex; align-items: center; gap: 5px;">
                 📄PDF
