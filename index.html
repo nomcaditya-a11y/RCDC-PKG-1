@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+    // Agar banda login hai, toh usko login form dikhao hi mat
+    if (sessionStorage.getItem("genus_auth") === "true") {
+        window.location.href = "portal.html";
+    }
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Genus Power RCDC Dashboard</title>
