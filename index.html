@@ -1,11 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-    // Agar banda login hai, toh usko login form dikhao hi mat
-    if (sessionStorage.getItem("genus_auth") === "true") {
-        window.location.href = "portal.html";
+<script>
+    // URL se token check karne ka logic (Security)
+    const urlParams = new URLSearchParams(window.location.search);
+    const access = urlParams.get('access');
+
+    if (access !== 'granted_by_genus') {
+        alert("Unauthorized Access! Please login through Genus Portal.");
+        window.location.href = "https://tumhari-main-portal-link.vercel.app"; // Apne main login page ka link yahan dalo
     }
+</script>
 </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
