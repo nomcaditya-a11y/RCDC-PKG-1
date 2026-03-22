@@ -21,26 +21,7 @@
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <div id="login-overlay" class="login-overlay">
-        <div class="login-box">
-            <img src="js/logo.webp" alt="Logo" style="height: 50px; margin-bottom: 20px;">
-            <h2 id="auth-title" style="margin-bottom: 10px; color: var(--text-main);">Dashboard Login</h2>
-            <p id="auth-subtitle" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">Enter credentials to access the dashboard.</p>
-            
-            <input type="text" id="auth-user" placeholder="Username" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem;">
-            <input type="password" id="auth-password" placeholder="Password" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem;">
-            
-            <input type="password" id="auth-admin-code" placeholder="Secret Registration Code" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; display: none;">
-            
-            <button id="auth-action-btn" onclick="handleAuth()" class="btn-primary" style="width: 100%; padding: 10px; margin-bottom: 10px;">Login</button>
-            
-            <p id="auth-message" style="font-size: 0.8rem; margin-top: 5px; display: none; font-weight: bold;"></p>
 
-            <div style="margin-top: 15px; font-size: 0.8rem; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 10px;">
-                <a href="#" id="auth-toggle-link" onclick="toggleAuthMode()" style="color: var(--primary); text-decoration: none; font-weight: bold;">Create a new account</a>
-            </div>
-        </div>
-    </div>
 
    <header class="top-nav">
         <div class="logo-area">
