@@ -2,13 +2,23 @@
 <html lang="en">
 <head>
 <script>
-    // URL se token check karne ka logic (Security)
+    // 🛑 EXTERNAL SECURITY GUARD
     const urlParams = new URLSearchParams(window.location.search);
-    const access = urlParams.get('access');
+    const token = urlParams.get('auth_token');
 
-    if (access !== 'granted_by_genus') {
-        alert("Unauthorized Access! Please login through Genus Portal.");
-        window.location.href = "https://tumhari-main-portal-link.vercel.app"; // Apne main login page ka link yahan dalo
+    // Agar URL mein sahi token nahi hai, toh access block karo
+    if (token !== 'GENUS_AUTHORIZED_ACCESS') {
+        document.body.innerHTML = `
+            <div style="background:#0f172a; color:white; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:sans-serif;">
+                <h1 style="color:#ef4444;">🚫 Access Denied</h1>
+                <p>Please login through the official Genus Portal to access this dashboard.</p>
+                <a href="https://your-main-portal-link.vercel.app" style="color:#3b82f6; text-decoration:none; margin-top:20px; border:1px solid #3b82f6; padding:10px 20px; border-radius:5px;">Go to Login Page</a>
+            </div>
+        `;
+        // 3 second baad redirect bhi kar sakte ho
+        setTimeout(() => {
+            window.location.href = "https://your-main-portal-link.vercel.app"; 
+        }, 3000);
     }
 </script>
 
