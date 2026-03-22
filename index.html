@@ -1,30 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-// 🔁 SAME config use karo jo login site me use kiya hai
-const firebaseConfig = {
-  apiKey: "YOUR_KEY",
-  authDomain: "YOUR_DOMAIN",
-  projectId: "YOUR_PROJECT_ID"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-// 🔐 REAL SECURITY CHECK
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    // ❌ not logged in
-    window.location.replace("https://nomc-monitoring.vercel.app/login.html");
-  } else {
-    console.log("Authorized user:", user.email);
-  }
-});
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Genus Power RCDC Dashboard</title>
